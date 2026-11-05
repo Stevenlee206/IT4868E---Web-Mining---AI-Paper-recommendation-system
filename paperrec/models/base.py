@@ -41,6 +41,10 @@ class Recommender(ABC):
         """Return allowed training pairs for a batch of user indices."""
         return self._training_mask(users)
 
+    def get_config(self):
+        """JSON-serializable model settings recorded by the experiment runner."""
+        return {"seed": self.seed}
+
     @abstractmethod
     def _fit(self):
         """Learn from the training inputs set by fit()."""

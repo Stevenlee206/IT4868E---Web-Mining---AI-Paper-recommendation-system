@@ -78,6 +78,11 @@ def run_experiment(dataset, folds, models, output, partition="validation", ks=(5
                     "split_fingerprint": split.fingerprint(),
                     "model_class": f"{type(model).__module__}.{type(model).__qualname__}",
                     "model_seed": int(model.seed),
+                    "model_config": model.get_config(),
+                    "feature_cache_hit": getattr(model, "cache_hit_", None),
+                    "feature_cache_path": str(model.cache_path_)
+                    if getattr(model, "cache_path_", None) is not None
+                    else None,
                     "training_seconds": training_seconds,
                     "process_rss_peak_mb": memory.peak / 1024**2,
                     "process_rss_increase_mb": (memory.peak - memory.baseline) / 1024**2,

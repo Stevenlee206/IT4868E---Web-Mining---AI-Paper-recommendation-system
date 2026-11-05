@@ -1,199 +1,113 @@
-# Data and evaluation foundation
+# Hướng dẫn thêm model vào PaperRec
 
-Date: 5 November 2026
-Tóm tắt: đã chia dataset theo warm/cold-start là lưu trong artifacts/. Dùng luôn.
+Repo đã có loader, 5-fold warm/cold, TF-IDF, BM25 và bộ đánh giá chung.
+**Dùng lại splits trong `artifacts/splits/`; thêm phương pháp mới trong `paperrec/models/`.**
 
-Viết model mới trong models/, kế thừa base.py
 
-## Dataset verification
+## 1. Cấu trúc cần biết
 
-Source: the existing local `data/raw/citeulike-a` directory. Raw files were not changed.
-
-| Statistic | Observed value |
-| --- | ---: |
-| Users | 5,551 |
-| Papers | 16,980 |
-| Unique saved user-paper pairs | 204,986 |
-| Sparsity | 99.7825% |
-| Duplicate interaction entries removed | 0 |
-| Missing titles | 0 |
-| Missing abstracts | 0 |
-| Missing combined text | 0 |
-| Papers needing Latin-1 fallback in a selected text field | 13 |
-
-CSV document IDs are converted from one-based to zero-based indices. Each
-physical `users.dat` line identifies a user, and its paper IDs are already
-zero-based. Paper order always matches interaction columns. Duplicate saves
-collapse to one binary positive; duplicate document IDs are rejected because
-they make metadata alignment ambiguous. Explicit zero-history rows remain.
-
-Interactions use a binary float32 CSR matrix. Text is recovered as UTF-8 where
-possible; undecodable fields retain their original bytes through Latin-1 and
-produce a warning. This preserves data but does not repair source corruption.
-Affected indices are available through `dataset.text_decode_fallback_ids`. Lỗi 
-format này do lẫn lộn tiếng Anh-Đức nhưng có thể bỏ qua, không quan trọng lắm.
-
-## Splitting protocol
-
-Defaults remain five outer folds, seed 42, and validation fraction 0.1.
-For each outer fold, its test population is held out first. Validation is
-sampled from the remaining four folds. The target proportions are approximately
-70/10/20 for train/validation/test, with the original rounding rules retained.
-
-- **Warm start:** positive and zero user-paper pairs are stratified separately
-  for each eligible paper. Papers with fewer than five saves stay entirely in
-  training. Validation sampling preserves at least one training positive per
-  eligible paper. Each eligible pair appears in the outer test pools exactly
-  once. Validation and test candidates vary by user.
-- **Cold start:** all paper IDs are partitioned into
-  five outer test groups. Validation papers are sampled from the remaining
-  papers. Entire columns are withheld from training. Text remains available.
-  Every paper is a test paper exactly once.
-- **Both:** positive matrices are disjoint and reconstruct the original
-  interactions. Candidate pools include unobserved pairs as well as positives.
-  Users and paper indices are retained. Empty histories are never repaired
-  using validation/test labels.
-
-The README describes warm splitting at a high level as splitting libraries.
-The existing implementation is more specific: it assigns pairs per paper and
-ranks only assigned candidate pools. That existing behavior was preserved as
-requested. It must be disclosed when comparing with full-catalog benchmarks.
-
-Before editing, all ten fold fingerprints were captured on a fixed synthetic
-dataset containing eligible, rare, and unsaved papers. The resulting fingerprints
-are exactly unchanged after the edits, including positive matrices, candidate
-masks, item pools, and split metadata.
-
-Full local dataset splits were generated under `artifacts/splits/warm` and
-`artifacts/splits/cold`. Fold numbers below are zero-based; counts are positive
-interactions, not candidate-pair counts.
-
-| Scenario | Fold | Train | Validation | Test | Validation users | Test users |
-| --- | ---: | ---: | ---: | ---: | ---: | ---: |
-| Warm | 0 | 145,011 | 19,974 | 40,001 | 4,769 | 5,389 |
-| Warm | 1 | 144,831 | 20,062 | 40,093 | 4,749 | 5,363 |
-| Warm | 2 | 144,869 | 20,064 | 40,053 | 4,823 | 5,341 |
-| Warm | 3 | 144,926 | 20,015 | 40,045 | 4,790 | 5,381 |
-| Warm | 4 | 144,871 | 20,056 | 40,059 | 4,791 | 5,379 |
-| Cold | 0 | 143,301 | 20,965 | 40,720 | 4,870 | 5,407 |
-| Cold | 1 | 142,674 | 20,686 | 41,626 | 4,838 | 5,414 |
-| Cold | 2 | 143,495 | 19,912 | 41,579 | 4,845 | 5,408 |
-| Cold | 3 | 144,533 | 20,485 | 39,968 | 4,814 | 5,390 |
-| Cold | 4 | 142,858 | 21,035 | 41,093 | 4,906 | 5,404 |
-
-Cold folds contain 11,886 training, 1,698 validation, and 3,396 test papers each.
-Their interaction counts differ because paper popularity differs.
-
-## Model interface 
-
-Subclass `paperrec.models.Recommender` and implement two methods:
-
-1. `_fit(self)` learns from `self.train`, a copy of the training interactions.
-   Paper text is available through `self.papers` and permitted training paper
-   IDs through `self.train_items`. Use `self.seed` for model randomness.
-2. `score(self, profile, user_index=None)` returns a one-dimensional finite
-   score array with one value per catalog paper. Higher scores rank first.
-
-Call `model.fit(dataset.papers, split)`; it prepares the inputs, invokes `_fit`,
-and returns the model. `recommend` handles candidates, observed-paper exclusions,
-optional additional exclusions, top-K truncation, and seeded score ties.
-
-Warm collaborative losses and negative sampling **must use**
-`self.training_mask(user_batch)`. Zeros in `self.train` alone cannot distinguish
-training negatives from withheld pairs. Cold collaborative parameters must be
-trained only for `self.train_items`. Under strict inductive text evaluation,
-fit vocabulary, IDF, dimensionality reduction, and other learned preprocessing
-on those training papers, then transform the rest of the catalog. A future
-model must follow these rules; the abstract interface cannot enforce its
-internal learning algorithm.
-
-The former embedding and vectorizer helpers were removed: no current model
-used them, and fitting a vectorizer on every paper would silently introduce
-transductive preprocessing in cold-start experiments.
-
-## Evaluation definitions
-
-Default cutoffs are 5, 10, and 20. Only users with training history and at least
-one target in the evaluated partition contribute. Each user has equal weight.
-Skipped users are reported as disjoint groups: no training profile, or a
-profile but no targets. An entirely unevaluable fold raises an error.
-
-For each user, rank every item returned by
-`split.candidate_items(user, partition)`. No negative sampling or alternative
-catalog scope is used. Validation labels never become profile input for test
-evaluation. Full rankings are needed for untruncated MRR.
-
-| Metric | Definition |
+| File/thư mục | Vai trò |
 | --- | --- |
-| Recall@K | Hits in the first K positions divided by the number of relevant papers. |
-| Precision@K | Hits divided by K, even if the candidate list is shorter than K. |
-| NDCG@K | Binary gains discounted by `1/log2(rank + 1)`, divided by ideal DCG for `min(K, relevant_count)` positives. |
-| MAP@K | Mean user AP@K; each AP sums precision at relevant ranks within K and divides by `min(K, relevant_count)`. |
-| F1@K | Harmonic mean of each user's Precision@K and Recall@K, then averaged over users. |
-| MRR | Mean reciprocal rank of the first relevant result over the complete candidate ranking. |
-| Catalog coverage@K | Distinct papers recommended in the first K positions across evaluated users divided by all catalog papers. |
+| `paperrec/data.py` | Đọc CiteULike-a: danh sách paper và user-item. |
+| `paperrec/splits.py` | Chia folds |
+| `paperrec/models/base.py` | Interface `Recommender`, lọc và xếp hạng kết quả. |
+| `paperrec/models/lexical.py` | TF-IDF, BM25; tham khảo khi thêm model. |
+| `paperrec/evaluation.py` | Định nghĩa metrics và đánh giá từng fold. |
+| `paperrec/experiment.py` | Tạo model mới mỗi fold, tổng hợp và lưu kết quả. |
+| `paperrec/baselines.py` | CLI chạy hai baseline chưa grid search. |
 
-Recall and NDCG remain the main proposal metrics. Precision is included to
-make F1 interpretable. Topic diversity is deferred to the proposal's session
-extension: the current data model has no topic annotations, so reporting a
-topic score now would be unsupported.
+## 2. Dữ liệu và splits
 
-The experiment runner creates a fresh model per fold. It reports equally
-weighted means and sample standard deviations across folds, retaining the
-individual fold results and user counts. Validation selects settings; only
-after fixing those settings should test evaluation be run.
+CiteULike-a có **5.551 users, 16.980 papers, 204.986 lượt lưu**.
+`dataset.papers[i]` tương ứng cột `i` của ma trận; ID bắt đầu từ 0.
+Text lấy từ `paper.text` (title + abstract), đọc từ `data/raw/citeulike-a/`.
 
-Efficiency measurements include model construction plus fitting time, full
-recommendation time per evaluated user (mean, p95, maximum), a p95-under-three-
-seconds indicator, and sampled process RSS peak/increase in MiB. Candidate
-selection and metric calculation are outside the recommendation timer. RSS
-includes the dataset, splits, and other process allocations; 50 ms sampling can
-miss short peaks and does not measure GPU memory. These are diagnostics, not
-isolated model-memory measurements or demonstrated latency for future models.
+Trong `artifacts/splits/{warm,cold}/fold_0` đến `fold_4`, mỗi fold chứa:
 
-## Running and extending the pipeline
+- `train.npz`, `validation.npz`, `test.npz`: **CSR user–item**, cùng shape `(5551, 16980)`.
+  Giá trị 1 là đã lưu; 0 không đồng nghĩa với không thích.
+- `split.json`: metadata và danh sách paper của từng partition.
+- Riêng warm có `candidates.npz`: mask nén xác định các cặp được phép đánh giá.
 
-From the repository root, using the existing virtual environment:
+Mỗi fold là một bộ train/validation/test hoàn chỉnh, xấp xỉ **70/10/20**, seed 42.
 
-```powershell
-.\.venv\Scripts\python.exe -m paperrec.data data/raw/citeulike-a
-.\.venv\Scripts\python.exe -m paperrec.splits data/raw/citeulike-a --output artifacts/splits --scenario both
-.\.venv\Scripts\python.exe -m pytest -q
-.\.venv\Scripts\python.exe -m ruff check paperrec tests
-```
+| Kịch bản | Cách chia |
+| --- | --- |
+| Warm | Chia cặp user–paper theo từng paper; paper có dưới 5 lượt lưu giữ trong train. Candidate pool khác nhau theo user. |
+| Cold | Giữ lại toàn bộ tương tác của paper validation/test khỏi train; text của các paper đó vẫn có sẵn. |
 
-The split output already exists from verification. Load it instead of rerunning
-the creation command, or choose a new directory. Saved data/text fingerprints
-and split checksums are verified on load; nonempty output directories are never
-silently overwritten.
+## 3. Viết model mới
+
+Tạo `paperrec/models/your_model.py`, kế thừa `Recommender` từ `.base`:
+
+| Phương thức | Yêu cầu |
+| --- | --- |
+| `_fit(self)` | Học tham số hoặc chuẩn bị đặc trưng từ dữ liệu training. |
+| `score(self, profile, user_index=None)` | Trả `np.ndarray` shape `(len(self.papers),)`, điểm hữu hạn cho **mọi paper**, đúng thứ tự ID; điểm cao xếp trước. |
+| `get_config(self)` | Trả dict JSON gồm `super().get_config()` và các hyperparameter để lưu trong kết quả. |
+
+`fit(papers, split)` có sẵn sẽ chuẩn bị `self.papers` (toàn catalog), `self.train`
+(tương tác training), `self.train_items` (ID paper được phép học) và gọi `_fit()`.
+Dùng `self.seed` cho randomness; nếu viết constructor riêng, gọi `super().__init__(seed=seed)`.
+
+
+## 4. Đưa model vào pipeline
+
+Sau khi hoàn thiện `YourRecommender`, tạo script chạy từ thư mục gốc:
 
 ```python
 from paperrec.data import load_citeulike_a
 from paperrec.splits import load_folds
+from paperrec.experiment import run_experiment
+from paperrec.models.your_model import YourRecommender
 
 dataset = load_citeulike_a("data/raw/citeulike-a")
-folds = load_folds("artifacts/splits/warm", dataset)
-print(folds[0].statistics())
-```
+folds = load_folds("artifacts/splits/warm", dataset)  # Đổi warm thành cold khi cần.
 
-After implementing `YourRecommender`, pass factories that construct fresh models:
-
-```python
-from paperrec.experiment import run_experiment
-
-report = run_experiment(
-    dataset,
-    folds,
-    models={"your-model-fixed-settings": lambda: YourRecommender(seed=42)},
+run_experiment(
+    dataset, folds,
+    models={"your-model": lambda: YourRecommender(seed=42)},
     output="results/your-model-warm-validation",
     partition="validation",
 )
 ```
 
-Use a separate output directory and `partition="test"` for the final evaluation.
-Repeat with the saved cold folds. Results are written to `results.json` with
-dataset/split fingerprints, model class/seed, fold statistics, metrics, timing,
-memory, and per-user recommendations. Keep the factory code and its settings
-with each experiment; arbitrary future model hyperparameters are not
-automatically serialized. arXiv remains outside this offline pipeline.
+
+## 5. Baseline và cách chạy
+
+| Phương pháp | Cách dùng text và lịch sử user |
+| --- | --- |
+| TF-IDF | Chuẩn hóa vector paper → trung bình các paper trong profile → chuẩn hóa lại → cosine similarity. |
+| BM25 | Query là tập từ không trùng trong profile; chấm điểm khớp từ có điều chỉnh tần suất/độ dài. Mặc định `k1=1.2`, `b=0.75`. |
+
+
+Cache lexical lưu ở `artifacts/features/`: warm dùng chung features giữa folds,
+cold tách theo `fold_i`. Mỗi cache có ma trận **paper–term**, vocabulary, IDF/thống kê
+và metadata/checksum; không lưu profile user. Cache và kết quả sinh ra được bỏ qua bởi Git.
+
+Trong terminal đã kích hoạt `.venv`, chạy từ thư mục gốc:
+
+```shell
+python -m pip install -e ".[dev]"
+python -m paperrec.baselines --scenario both --partition validation --output results/lexical-validation-new
+python -m paperrec.baselines --scenario both --partition test --output results/lexical-test-new
+python -m pytest -q
+python -m ruff check paperrec tests
+```
+
+Chạy validation trước, chốt cấu hình rồi mới chạy test. CLI hỗ trợ `--k1`, `--b`,
+`--sublinear-tf`, `--min-df`, `--max-df`; thêm `--no-cache` để đo thời gian fit từ đầu.
+Luôn chọn output mới, chương trình không ghi đè kết quả cũ. `tests/test_lexical.py`
+kiểm tra scoring, leakage và cache bằng dữ liệu nhỏ; không phải đánh giá test split.
+
+Kết quả **validation** mặc định ngày 05/11/2026 (mean ± sample std của 5 folds):
+
+| Kịch bản | Model | Recall@20 | NDCG@20 |
+| --- | --- | ---: | ---: |
+| Warm | TF-IDF | 0.3302 ± 0.0035 | 0.2162 ± 0.0016 |
+| Warm | BM25 | 0.2352 ± 0.0022 | 0.1451 ± 0.0019 |
+| Cold | TF-IDF | 0.3260 ± 0.0095 | 0.2152 ± 0.0131 |
+| Cold | BM25 | 0.2240 ± 0.0125 | 0.1397 ± 0.0075 |
+
+Chi tiết: `results/lexical-validation/{warm,cold}/results.json` trên máy đã chạy.
 
