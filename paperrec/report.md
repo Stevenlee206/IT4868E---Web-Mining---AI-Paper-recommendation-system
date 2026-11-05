@@ -1,7 +1,9 @@
 # Data and evaluation foundation
 
 Date: 5 November 2026
+Tóm tắt: đã chia dataset theo warm/cold-start là lưu trong artifacts/. Dùng luôn.
 
+Viết model mới trong models/, kế thừa base.py
 
 ## Dataset verification
 
