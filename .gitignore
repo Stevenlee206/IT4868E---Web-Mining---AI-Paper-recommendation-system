@@ -1,0 +1,15 @@
+.venv/
+__pycache__/
+*.py[cod]
+.pytest_cache/
+*.egg-info/
+.ruff_cache/
+.env
+results/
+.cache/
+tests/*
+!tests/test_lexical.py
+
+# Reproducible lexical features are generated locally from the saved splits.
+artifacts/features/
+
