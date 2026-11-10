@@ -1,0 +1,5 @@
+numpy==1.26.4
+scipy==1.15.3
+implicit==0.7.2
+torch==2.10.0
+scikit-learn==1.7.2

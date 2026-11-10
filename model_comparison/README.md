@@ -1,0 +1,97 @@
+# Ch?y v? so s?nh 4 m? h?nh g?i ? b?i b?o
+
+B? m? ??c l?p g?m ItemKNN (cosine), WMF (implicit ALS), NeuMF (PyTorch GMF + MLP), v? CTR (LDA + PMF c? c?p nh?t k?t h?p). T?t c? d?ng chung c?ch chia train/test v? ??nh gi? Recall@20, Recall@50, NDCG@20, NDCG@50.
+
+## M?i tr??ng
+
+B? m? n?y d?ng Python 3.10 v? m?i tr??ng ri?ng trong model_comparison/. N? ??c l?p v?i g?i paperrec/ ? th? m?c g?c, hi?n y?u c?u Python >=3.11. C?c l?nh d??i ??y ch?y t? th? m?c model_comparison/.
+
+```powershell
+cd model_comparison
+py -3.10 -m venv .venv
+.\.venv\Scripts\python.exe -m pip install -r requirements.txt -r requirements-dev.txt
+.\.venv\Scripts\python.exe -m pip check
+```
+
+requirements-lock.txt l?u b? phi?n b?n ?? ki?m th? tr?n Windows x64 Python 3.10. C? th? d?ng `pip install -r requirements-lock.txt` ?? t?i l?p m?i tr??ng n?y.
+
+## Ch?y nhanh
+
+```powershell
+.\.venv\Scripts\python.exe main.py run --config configs/smoke.json --model all
+```
+
+L?nh n?y d?ng d? li?u nh? trong tests/fixtures/citeulike-mini/, kh?ng c?n chu?n b? dataset ??y ??.
+
+## Ch?y tr?n to?n b? CiteULike-A
+
+Dataset d?ng tr?c ti?p t? ../data/raw/citeulike-a/ c? s?n trong repo. C?n users.dat, raw-data.csv, mult.dat v? vocabulary.dat. ???ng d?n b?n trong config ???c t?nh t??ng ??i t? file config.
+
+```powershell
+# Tham s? m?c ??nh
+.\.venv\Scripts\python.exe main.py run --config configs/default.json --model all
+
+# Tham s? ?? ch?n qua validation
+.\.venv\Scripts\python.exe main.py run --config configs/optimized.json --model all
+
+# Ch?y ri?ng m?t m? h?nh
+.\.venv\Scripts\python.exe main.py run --config configs/default.json --model wmf
+```
+
+C? th? thay --model b?ng item_knn, wmf, neumf, ctr ho?c all. Kh?ng c?n d? li?u x? l? hay checkpoint t? m?y ban ??u: l?nh run ??c d? li?u g?c v? t? chu?n b?.
+
+?? l?u v? d?ng l?i m?t l?n chia d? li?u:
+
+```powershell
+.\.venv\Scripts\python.exe main.py prepare --data-dir ../data/raw/citeulike-a --prepared-dir artifacts/prepared/seed42 --seed 42
+.\.venv\Scripts\python.exe main.py run --prepared-dir artifacts/prepared/seed42 --config configs/optimized.json --model all
+```
+
+## T?m tham s? b?ng validation
+
+```powershell
+.\.venv\Scripts\python.exe tune.py --prepared-dir artifacts/prepared/seed42 --search configs/search.json --evaluate
+```
+
+Tuner ch? t?o validation t? train, ch?n theo NDCG@20, sau ?? refit train v? ??nh gi? test khi c? --evaluate. B? --evaluate n?u ch? mu?n t?m tham s?. L?ch s? n?m trong artifacts/tuning/, c? th? ti?p t?c b?ng --resume <th?-m?c-l??t-tuning> v?i c?ng c?u h?nh, dataset v? search.
+
+## Ki?m th?
+
+```powershell
+.\.venv\Scripts\python.exe -m pytest tests -q
+```
+
+C?c ki?m th? d?ng d? li?u nh?, kh?ng ch?y hu?n luy?n tr?n to?n b? dataset.
+
+## C?c th? m?c
+
+| ???ng d?n | M?c ??ch |
+| --- | --- |
+| main.py | CLI prepare/run |
+| tune.py | T?m tham s? tr?n validation |
+| data_loader/ | ??c d? li?u, chu?n h?a ID, chia train/test v? l?u ma tr?n th?a |
+| models/ | C?i ??t ItemKNN, WMF, NeuMF, CTR |
+| evaluation/ | X?p h?ng chung, t?nh metrics, xu?t b?o c?o |
+| pipeline/ | C?u h?nh, seed, ?i?u ph?i v? ghi nh?n t?i nguy?n |
+| configs/ | default, optimized, smoke v? search space |
+| tests/ | Ki?m th? v? dataset nh? |
+| artifacts/ | D? li?u x? l? v? k?t qu? sinh khi ch?y, ???c Git b? qua |
+
+## K?t qu? v? quy tr?nh ??nh gi?
+
+M?i l?n ch?y t?o th? m?c k?t qu? m?i v? in ???ng d?n tr?n terminal. comparison.csv/json ch?a k?t qu? b?n m? h?nh. M?i th? m?c models/<model>/ c? metrics.json, per_user_metrics.csv, recommendations.csv v? status.json. recommendations.csv l?u top 50 b?i b?o, ?i?m v? th? h?ng cho t?ng ng??i d?ng.
+
+C?c file ngu?n d?ng ID kh?c nhau: CSV doc.id b?t ??u t? 1, c?n users.dat/mult.dat b?t ??u t? 0. raw-data.csv ch?a metadata, kh?ng ch?a t??ng t?c ng??i d?ng. CSV th? UTF-8 r?i ghi nh?n fallback Latin-1 n?u c?n; kh?ng s?a file g?c.
+
+T??ng t?c ???c chia 80/20 theo t?ng ng??i d?ng v?i seed 42, l?m tr?n s? test b?ng ceil v? gi? ?t nh?t m?t t??ng t?c train. ??nh gi? x?p h?ng to?n b? catalog tr? c?c b?i train, kh?ng l?y m?u negative cho test. C?c m? h?nh d?ng c?ng ng??i d?ng v? split; ?i?m ???c macro-average. T?i l?p ch?nh x?c m? h?nh y?u c?u c?ng m?i tr??ng CPU, phi?n b?n v? seed.
+
+K?t qu? tr??c ??y tr?n 5.551 ng??i d?ng (c?ng split seed 42, m?t l?n ch?y):
+
+| M? h?nh | Recall@20 | Recall@50 | NDCG@20 | NDCG@50 |
+| --- | --- | --- | --- | --- |
+| ItemKNN optimized | 0.263450 | 0.377117 | 0.225564 | 0.260900 |
+| WMF optimized | 0.287476 | 0.427919 | 0.230175 | 0.276054 |
+| NeuMF baseline | 0.166137 | 0.274889 | 0.132382 | 0.167068 |
+| CTR baseline | 0.176555 | 0.298309 | 0.133511 | 0.173753 |
+
+C?c con s? l? tham chi?u c?a l?n ch?y tr??c, kh?ng ph?i k?t qu? m?i ???c ch?y l?i khi copy. NeuMF/CTR gi? baseline v? c?c c?u h?nh ?? th? kh?ng c?i thi?n validation. M? h?nh ph?c t?p h?n kh?ng m?c nhi?n ??t ?i?m cao h?n.

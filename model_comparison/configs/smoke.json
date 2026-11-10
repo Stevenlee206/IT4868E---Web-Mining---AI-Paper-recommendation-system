@@ -1,0 +1,64 @@
+{
+  "data": {
+    "data_dir": "../tests/fixtures/citeulike-mini",
+    "prepared_dir": null,
+    "metadata_encoding": "auto"
+  },
+  "split": {
+    "seed": 42,
+    "test_fraction": 0.2
+  },
+  "experiment": {
+    "models": "all",
+    "model_seed": 42,
+    "output_dir": "../artifacts/smoke",
+    "deterministic": true,
+    "threads": 1,
+    "device": "cpu",
+    "checkpoint": false
+  },
+  "item_knn": {
+    "neighbors": 2,
+    "similarity_block_size": 256
+  },
+  "wmf": {
+    "factors": 3,
+    "confidence_scale": 40.0,
+    "regularization": 0.1,
+    "iterations": 2,
+    "use_cg": false
+  },
+  "neumf": {
+    "gmf_dim": 3,
+    "mlp_embedding_dim": 3,
+    "hidden_sizes": [
+      6,
+      3
+    ],
+    "learning_rate": 0.001,
+    "epochs": 2,
+    "batch_size": 8,
+    "negative_ratio": 4
+  },
+  "ctr": {
+    "topics": 2,
+    "lda_iterations": 2,
+    "outer_iterations": 2,
+    "topic_iterations": 50,
+    "lambda_u": 0.1,
+    "lambda_v": 1.0,
+    "confidence_observed": 1.0,
+    "confidence_unobserved": 0.01,
+    "tolerance": 0.0001,
+    "numerical_floor": 1e-12
+  },
+  "evaluation": {
+    "cutoffs": [
+      20,
+      50
+    ],
+    "top_n": 50,
+    "user_batch_size": 32,
+    "pair_batch_size": 8192
+  }
+}
