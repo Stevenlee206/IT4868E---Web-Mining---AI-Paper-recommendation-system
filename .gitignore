@@ -5,11 +5,20 @@ __pycache__/
 *.egg-info/
 .ruff_cache/
 .env
-results/
+results/*
+!results/tuning_summary.md
+!results/error_analysis.md
 .cache/
 tests/*
 !tests/test_lexical.py
+!tests/test_semantic.py
 
-# Reproducible lexical features are generated locally from the saved splits.
+# Heavy embeddings and model checkpoints
+*.npy
+*.pt
+*.bin
+artifacts/embeddings/
+L08-RecommendationSystems.pdf
+
+# Reproducible lexical and semantic features generated locally
 artifacts/features/
-

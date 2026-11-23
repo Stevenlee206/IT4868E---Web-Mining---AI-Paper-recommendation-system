@@ -12,9 +12,15 @@ Repo đã có loader, 5-fold warm/cold, TF-IDF, BM25 và bộ đánh giá chung.
 | `paperrec/splits.py` | Chia folds |
 | `paperrec/models/base.py` | Interface `Recommender`, lọc và xếp hạng kết quả. |
 | `paperrec/models/lexical.py` | TF-IDF, BM25; tham khảo khi thêm model. |
+| `paperrec/models/lsi.py` | LSI (Truncated SVD trên TF-IDF). |
+| `paperrec/models/lda.py` | LDA topic modeling + xuất phân phối $\Theta$ cho CTR. |
+| `paperrec/models/specter2.py` | SPECTER2 transformer embeddings + hàm demo arXiv. |
 | `paperrec/evaluation.py` | Định nghĩa metrics và đánh giá từng fold. |
 | `paperrec/experiment.py` | Tạo model mới mỗi fold, tổng hợp và lưu kết quả. |
-| `paperrec/baselines.py` | CLI chạy hai baseline chưa grid search. |
+| `paperrec/baselines.py` | CLI chạy hai baseline lexical. |
+| `paperrec/extract_embeddings.py`| Trích xuất và xuất file `.npy` bàn giao cho WP3 và CTR. |
+| `paperrec/tune.py` | Grid search siêu tham số $K$ cho LSI và LDA. |
+
 
 ## 2. Dữ liệu và splits
 
@@ -36,6 +42,7 @@ Mỗi fold là một bộ train/validation/test hoàn chỉnh, xấp xỉ **70/1
 | Warm | Chia cặp user–paper theo từng paper; paper có dưới 5 lượt lưu giữ trong train. Candidate pool khác nhau theo user. |
 | Cold | Giữ lại toàn bộ tương tác của paper validation/test khỏi train; text của các paper đó vẫn có sẵn. |
 
+
 ## 3. Viết model mới
 
 Tạo `paperrec/models/your_model.py`, kế thừa `Recommender` từ `.base`:
@@ -51,56 +58,22 @@ Tạo `paperrec/models/your_model.py`, kế thừa `Recommender` từ `.base`:
 Dùng `self.seed` cho randomness; nếu viết constructor riêng, gọi `super().__init__(seed=seed)`.
 
 
-## 4. Đưa model vào pipeline
-
-Sau khi hoàn thiện `YourRecommender`, tạo script chạy từ thư mục gốc:
-
-```python
-from paperrec.data import load_citeulike_a
-from paperrec.splits import load_folds
-from paperrec.experiment import run_experiment
-from paperrec.models.your_model import YourRecommender
-
-dataset = load_citeulike_a("data/raw/citeulike-a")
-folds = load_folds("artifacts/splits/warm", dataset)  # Đổi warm thành cold khi cần.
-
-run_experiment(
-    dataset, folds,
-    models={"your-model": lambda: YourRecommender(seed=42)},
-    output="results/your-model-warm-validation",
-    partition="validation",
-)
-```
-
-
-## 5. Baseline và cách chạy
+## 4. Baseline và cách chạy
 
 | Phương pháp | Cách dùng text và lịch sử user |
 | --- | --- |
 | TF-IDF | Chuẩn hóa vector paper → trung bình các paper trong profile → chuẩn hóa lại → cosine similarity. |
 | BM25 | Query là tập từ không trùng trong profile; chấm điểm khớp từ có điều chỉnh tần suất/độ dài. Mặc định `k1=1.2`, `b=0.75`. |
 
-
-Cache lexical lưu ở `artifacts/features/`: warm dùng chung features giữa folds,
-cold tách theo `fold_i`. Mỗi cache có ma trận **paper–term**, vocabulary, IDF/thống kê
-và metadata/checksum; không lưu profile user. Cache và kết quả sinh ra được bỏ qua bởi Git.
-
 Trong terminal đã kích hoạt `.venv`, chạy từ thư mục gốc:
 
 ```shell
 python -m pip install -e ".[dev]"
 python -m paperrec.baselines --scenario both --partition validation --output results/lexical-validation-new
-python -m paperrec.baselines --scenario both --partition test --output results/lexical-test-new
 python -m pytest -q
-python -m ruff check paperrec tests
 ```
 
-Chạy validation trước, chốt cấu hình rồi mới chạy test. CLI hỗ trợ `--k1`, `--b`,
-`--sublinear-tf`, `--min-df`, `--max-df`; thêm `--no-cache` để đo thời gian fit từ đầu.
-Luôn chọn output mới, chương trình không ghi đè kết quả cũ. `tests/test_lexical.py`
-kiểm tra scoring, leakage và cache bằng dữ liệu nhỏ; không phải đánh giá test split.
-
-Kết quả **validation** mặc định ngày 05/11/2026 (mean ± sample std của 5 folds):
+Kết quả **validation** mặc định:
 
 | Kịch bản | Model | Recall@20 | NDCG@20 |
 | --- | --- | ---: | ---: |
@@ -109,5 +82,42 @@ Kết quả **validation** mặc định ngày 05/11/2026 (mean ± sample std c�
 | Cold | TF-IDF | 0.3260 ± 0.0095 | 0.2152 ± 0.0131 |
 | Cold | BM25 | 0.2240 ± 0.0125 | 0.1397 ± 0.0075 |
 
-Chi tiết: `results/lexical-validation/{warm,cold}/results.json` trên máy đã chạy.
 
+## 5. WP2 — Semantic Models (LSI, LDA, SPECTER2)
+
+### 5.1 Trích xuất và bàn giao Embedding (Bước 2)
+
+Chạy script sau để sinh các file `.npy` lưu tại `artifacts/embeddings/`:
+
+```shell
+python -m paperrec.extract_embeddings --models all --output-dir artifacts/embeddings
+```
+
+- `artifacts/embeddings/specter2_embeddings.npy`: Ma trận `(16980, 768)` bàn giao cho **WP3** (làm SPECTER2+GCN).
+- `artifacts/embeddings/lda_topics.npy`: Ma trận $\Theta$ `(16980, 100)` bàn giao cho bạn làm **CTR** (Collaborative Topic Regression).
+- `artifacts/embeddings/lsi_embeddings.npy`: Ma trận `(16980, 200)` cho LSI.
+
+### 5.2 Thực nghiệm và Grid Search (Bước 3)
+
+Chạy tìm kiếm số chiều ẩn $K$ cho LSI ($K \in \{100, 200, 300\}$) và LDA ($K \in \{50, 100, 150\}$):
+
+```shell
+python -m paperrec.tune --scenario both --partition validation --output results/tuning-validation
+```
+
+Chạy có thêm SPECTER2:
+```shell
+python -m paperrec.tune --scenario both --partition validation --output results/tuning-validation --include-specter2
+```
+
+### 5.3 Tích hợp Demo WP4 (Bước 4)
+
+Module `paperrec.models.specter2` cung cấp sẵn hàm `encode_arxiv_paper`:
+
+```python
+from paperrec.models.specter2 import encode_arxiv_paper
+
+title = "Attention Is All You Need"
+abstract = "The dominant sequence transduction models are based on complex recurrent or convolutional neural networks..."
+vector = encode_arxiv_paper(title, abstract)  # Trả về numpy vector (768,)
+```

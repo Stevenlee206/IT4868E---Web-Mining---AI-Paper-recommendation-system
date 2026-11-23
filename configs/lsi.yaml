@@ -1,0 +1,9 @@
+# LSI Recommender Configuration
+method: lsi
+seed: 42
+n_components: 200
+sublinear_tf: false
+min_df: 2
+max_df: 0.8
+tuning_grid:
+  n_components: [100, 200, 300]

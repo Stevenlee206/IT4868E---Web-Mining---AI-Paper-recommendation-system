@@ -1,0 +1,10 @@
+# LDA Recommender Configuration
+method: lda
+seed: 42
+n_topics: 100
+max_iter: 20
+learning_method: online
+min_df: 5
+max_df: 0.5
+tuning_grid:
+  n_topics: [50, 100, 150]
