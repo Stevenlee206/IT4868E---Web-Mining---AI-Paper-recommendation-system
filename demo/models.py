@@ -138,8 +138,7 @@ def encode(name, title, abstract):
         return unit(similar / np.load(DATA / "lsi_sigma.npy") ** 2)[0]
     if name == "lda":
         return unit(lda_topics(text))
-    known = (tuple(papers()[0]), [vectors(n)[0] for n in ("specter2-base", "specter2-adapter")])
-    vector = unit(hf.embed(title, abstract, name != "specter2-base", known))
+    vector = unit(hf.embed(title, abstract, name != "specter2-base"))
     if name.startswith("specter2"):
         return vector
     # A typed paper has no citations, so it only receives its own message.

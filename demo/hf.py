@@ -42,8 +42,12 @@ def vectors(title, abstract):
         reply.raise_for_status()
         name, data = last_event(reply.content.decode())
         if name != "complete":
-            raise Unavailable("the Space is out of quota or failed")
-        return {key: np.array(data[0][key], dtype=np.float32) for key in ("base", "adapter")}
+            hint = "" if headers else "; set HF_TOKEN for more quota"
+            raise Unavailable(f"the Space is out of quota or failed{hint}")
+        result = {key: np.array(data[0][key], dtype=np.float32) for key in ("base", "adapter")}
+        if any(vector.shape != (768,) for vector in result.values()):
+            raise Unavailable("unexpected response")
+        return result
     except requests.RequestException as error:
         status = getattr(error.response, "status_code", None)
         raise Unavailable(f"HTTP {status}" if status else type(error).__name__) from error
@@ -51,17 +55,5 @@ def vectors(title, abstract):
         raise Unavailable("unexpected response") from error
 
 
-@cache
-def verified(title, abstract, expected):
-    """Check the Space once against stored vectors of a known paper."""
-    for key, stored in zip(("base", "adapter"), expected, strict=True):
-        vector = vectors(title, abstract)[key]
-        stored = np.frombuffer(stored, np.float32)
-        if vector.shape != stored.shape or not vector @ stored > 0.98 * np.linalg.norm(vector):
-            raise Unavailable("its vectors do not match the stored ones")
-
-
-def embed(title, abstract, adapter, known):
-    (known_title, known_abstract), expected = known
-    verified(known_title, known_abstract, tuple(x.tobytes() for x in expected))
+def embed(title, abstract, adapter):
     return vectors(title, abstract)["adapter" if adapter else "base"]

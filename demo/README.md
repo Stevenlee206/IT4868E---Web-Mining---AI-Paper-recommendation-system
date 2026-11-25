@@ -17,9 +17,15 @@ Or `./demo/run.sh`, which also creates a virtual environment. Tested on Python 3
 TF-IDF, BM25, LSI and LDA work offline. SPECTER2 and the GCN models send the text to a Hugging
 Face Space that runs the encoder (`space/`). Its address is in `space.txt`, or in `SPACE_URL`.
 
-The Space runs on free ZeroGPU hardware. It sleeps when unused, and calls without a token share
-2 GPU minutes a day. Set `HF_TOKEN` to a read token to get your own quota. If the Space is asleep,
-out of quota or unreachable, the app shows TF-IDF results and says so.
+The Space runs on free ZeroGPU hardware and sleeps when unused. Without a token, Hugging Face
+allows only a few runs a day. For more, set `HF_TOKEN` to a **read** token before starting the app:
+
+```shell
+read -rs "HF_TOKEN?Read token: " && export HF_TOKEN
+python check_space.py
+```
+
+If the Space is asleep, out of quota or unreachable, the app shows TF-IDF results and says so.
 
 To host your own (free accounts need a verified email and to be older than 30 days):
 
