@@ -9,8 +9,8 @@
 
 | Model | Config | Recall@5 | Recall@10 | Recall@20 | NDCG@20 | MRR | Train Time |
 |---|---|:---:|:---:|:---:|:---:|:---:|:---:|
-| **TF-IDF (Baseline WP1)** | L2 norm | 0.1384 | 0.2241 | 0.3302 ± 0.0035 | 0.2162 ± 0.0016 | 0.2520 | ~1s |
-| **BM25 (Baseline WP1)** | k1=1.2, b=0.75 | 0.0891 | 0.1502 | 0.2352 ± 0.0022 | 0.1451 ± 0.0019 | 0.1780 | ~2s |
+| **TF-IDF (Baseline WP1)** | L2 norm | 0.1712 | 0.2453 | 0.3302 ± 0.0035 | 0.2162 ± 0.0016 | 0.2601 | ~1s |
+| **BM25 (Baseline WP1)** | k1=1.2, b=0.75 | 0.1104 | 0.1642 | 0.2352 ± 0.0022 | 0.1451 ± 0.0019 | 0.1796 | ~2s |
 | lsi_k100 | - | 0.1523 | 0.2315 | 0.3286 ± 0.0014 | 0.2066 ± 0.0017 | 0.2489 | 6.0s |
 | lsi_k200 | - | 0.1671 | 0.2460 | 0.3381 ± 0.0039 | 0.2191 ± 0.0021 | 0.2639 | 7.4s |
 | **lsi_k300** | - | 0.1742 | 0.2513 | 0.3416 ± 0.0020 | 0.2239 ± 0.0020 | 0.2704 | 9.7s |
@@ -25,8 +25,8 @@
 
 | Model | Config | Recall@5 | Recall@10 | Recall@20 | NDCG@20 | MRR | Train Time |
 |---|---|:---:|:---:|:---:|:---:|:---:|:---:|
-| **TF-IDF (Baseline WP1)** | L2 norm | 0.1370 | 0.2215 | 0.3260 ± 0.0095 | 0.2152 ± 0.0131 | 0.2470 | ~1s |
-| **BM25 (Baseline WP1)** | k1=1.2, b=0.75 | 0.0834 | 0.1420 | 0.2240 ± 0.0125 | 0.1397 ± 0.0075 | 0.1700 | ~2s |
+| **TF-IDF (Baseline WP1)** | L2 norm | 0.1680 | 0.2419 | 0.3260 ± 0.0095 | 0.2152 ± 0.0131 | 0.2629 | ~1s |
+| **BM25 (Baseline WP1)** | k1=1.2, b=0.75 | 0.1068 | 0.1578 | 0.2240 ± 0.0125 | 0.1397 ± 0.0075 | 0.1732 | ~2s |
 | lsi_k100 | - | 0.1464 | 0.2283 | 0.3260 ± 0.0094 | 0.2027 ± 0.0052 | 0.2412 | 3.3s |
 | lsi_k200 | - | 0.1614 | 0.2445 | 0.3354 ± 0.0100 | 0.2163 ± 0.0053 | 0.2617 | 4.8s |
 | **lsi_k300** | - | 0.1686 | 0.2499 | 0.3409 ± 0.0112 | 0.2217 ± 0.0054 | 0.2664 | 6.0s |
@@ -54,4 +54,4 @@
    - Tuy nhiên, ma trận phân phối chủ đề $\Theta$ trích xuất được (`lda_topics.npy`) là thành phần thiết yếu được chuyển giao thành công cho mô hình Collaborative Topic Regression (CTR).
 
 ---
-*(Báo cáo được tạo tự động từ `paperrec.tune` - 5-fold cross-validation)*
+*(5-fold cross-validation, phần validation. LSI, LDA và SPECTER2 chạy bằng `paperrec.tune`; Recall@5, Recall@10 và MRR của TF-IDF, BM25 đã được sửa theo lần chạy lại bằng `paperrec.benchmark`.)*
