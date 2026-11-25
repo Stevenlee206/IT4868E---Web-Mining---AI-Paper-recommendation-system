@@ -36,38 +36,11 @@ def save_quantized(path, matrix):
     np.save(path.with_name(f"{path.stem}_scale.npy"), scale.astype(np.float32))
 
 
-def fit_map(source, target, ridge=0.03):
-    """Ridge regression with intercept; rows of the result are [weights; intercept]."""
-    x = np.hstack((source, np.ones((len(source), 1))))
-    return np.linalg.solve(x.T @ x + ridge * np.eye(x.shape[1]), x.T @ target)
-
-
-def adapter_map(features_dir, papers, output):
-    """Predict adapter vectors from base vectors, which is all the hosted API provides."""
+def export_specter2(features_dir, papers, output):
     base = unit(np.load(features_dir / "specter2_base.npy").astype(np.float64))
     adapter = unit(specter2_features(papers, cache_root=features_dir / "specter2").astype(float))
-    order = np.random.default_rng(0).permutation(len(base))
-    test, train = order[:2000], order[2000:]
-    weights = fit_map(base[train], adapter[train])
-    predicted = unit(base[test] @ weights[:-1] + weights[-1])
-    overlap, baseline = [], []
-    for i, row in enumerate(test[:500]):
-        true = np.argsort(-(adapter @ adapter[row]))[1:21]
-        ours = np.argsort(-(adapter @ predicted[i]))
-        raw = np.argsort(-(adapter @ base[row]))
-        overlap.append(len(set(true) & set(ours[ours != row][:20])) / 20)
-        baseline.append(len(set(true) & set(raw[raw != row][:20])) / 20)
-    report = {
-        "held_out_cosine_mapped": float((predicted * adapter[test]).sum(1).mean()),
-        "held_out_cosine_unmapped": float((base[test] * adapter[test]).sum(1).mean()),
-        "top20_overlap_mapped": float(np.mean(overlap)),
-        "top20_overlap_unmapped": float(np.mean(baseline)),
-    }
-    print(json.dumps(report), flush=True)
-    np.save(output / "adapter_map.npy", fit_map(base, adapter).astype(np.float32))
     save_quantized(output / "specter2-base.npy", base)
     save_quantized(output / "specter2-adapter.npy", adapter)
-    return report
 
 
 def export_model(name, model, output, vocabulary):
@@ -114,7 +87,8 @@ def main():
     vocabulary = {term: int(i) for term, i in vectorizer.vocabulary_.items()}
     with gzip.open(output / "vocabulary.json.gz", "wt", encoding="utf-8") as f:
         json.dump(sorted(vocabulary, key=vocabulary.get), f, ensure_ascii=False)
-    reference = {"adapter_map": adapter_map(args.features, papers, output), "top": {}}
+    export_specter2(args.features, papers, output)
+    reference = {"top": {}}
 
     rng = np.random.default_rng(1)
     users = np.sort(rng.choice(split.evaluation_users("test"), 40, replace=False))

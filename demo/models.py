@@ -138,13 +138,9 @@ def encode(name, title, abstract):
         return unit(similar / np.load(DATA / "lsi_sigma.npy") ** 2)[0]
     if name == "lda":
         return unit(lda_topics(text))
-    base = unit(hf.embed(title, abstract, check=(papers()[0], vectors("specter2-base")[0])))
-    if name == "specter2-base":
-        return base
-    # The hosted API has no adapter, so its output is predicted from the base vector.
-    adapter = np.load(DATA / "adapter_map.npy")
-    vector = unit(base @ adapter[:-1] + adapter[-1])
-    if name == "specter2-adapter":
+    known = (tuple(papers()[0]), [vectors(n)[0] for n in ("specter2-base", "specter2-adapter")])
+    vector = unit(hf.embed(title, abstract, name != "specter2-base", known))
+    if name.startswith("specter2"):
         return vector
     # A typed paper has no citations, so it only receives its own message.
     layer = np.load(DATA / f"{name}_layer.npy")

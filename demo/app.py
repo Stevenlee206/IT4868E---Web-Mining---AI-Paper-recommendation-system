@@ -19,7 +19,7 @@ picked = st.multiselect("Papers you like", range(len(catalog)), format_func=lamb
 title = st.text_input("Title").strip() if takes_text else ""
 abstract = st.text_area("Abstract").strip() if takes_text else ""
 if name in HOSTED:
-    st.caption("Typed text is sent to the Hugging Face API.")
+    st.caption("Typed text is sent to a Hugging Face Space, which may need a minute to wake up.")
 
 if st.button("Recommend", type="primary"):
     if not (picked or title or abstract):
@@ -28,7 +28,7 @@ if st.button("Recommend", type="primary"):
     try:
         results = recommend(name, k, picked, title, abstract)
     except hf.Unavailable as error:
-        st.warning(f"Hugging Face is unavailable ({error}). Showing TF-IDF results instead.")
+        st.warning(f"The encoder is unavailable ({error}). Showing TF-IDF results instead.")
         results = recommend("tfidf", k, picked, title, abstract)
     if not results:
         st.warning("This model has nothing to match on for this input.")
