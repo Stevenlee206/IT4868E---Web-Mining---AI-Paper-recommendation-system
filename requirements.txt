@@ -1,0 +1,14 @@
+# Core scientific computing and recommenders
+numpy>=1.26,<3
+scipy>=1.12,<2
+scikit-learn>=1.4,<2
+psutil>=5.9,<8
+pyyaml>=6.0
+
+# Deep learning and representation models (SPECTER2 for WP2 & WP3)
+torch>=2.0.0
+transformers>=4.40.0
+
+# Development and testing
+pytest>=8.0
+ruff>=0.9

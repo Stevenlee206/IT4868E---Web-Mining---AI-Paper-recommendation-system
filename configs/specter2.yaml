@@ -1,0 +1,8 @@
+# SPECTER2 Recommender Configuration
+method: specter2
+seed: 42
+model_name: allenai/specter2_base
+cache_path: artifacts/embeddings/specter2_embeddings.npy
+batch_size: 64
+max_length: 512
+embedding_dim: 768

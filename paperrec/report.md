@@ -14,6 +14,9 @@ Repo đã có loader, 5-fold warm/cold, TF-IDF, BM25 và bộ đánh giá chung.
 | `paperrec/specter.py` | Tính và cache embedding SPECTER2. |
 | `paperrec/models/base.py` | Interface `Recommender`, lọc và xếp hạng kết quả. |
 | `paperrec/models/lexical.py` | TF-IDF, BM25; tham khảo khi thêm model. |
+| `paperrec/models/lsi.py` | LSI (Truncated SVD trên TF-IDF). |
+| `paperrec/models/lda.py` | LDA topic modeling. |
+| `paperrec/models/specter2.py` | SPECTER2 (base) và hàm demo arXiv. |
 | `paperrec/models/node2vec.py` | Node2Vec trên citation hoặc đồ thị user–paper. |
 | `paperrec/models/gcn.py` | SPECTER2 thuần, Simplified PR-SGCN và bản đối chứng không đồ thị. |
 | `paperrec/evaluation.py` | Định nghĩa metrics và đánh giá từng fold. |
@@ -548,3 +551,42 @@ python -m paperrec.run_gcn --partition test --output results/test/specter2 --mod
 python -m paperrec.analyze_degree --results results/test/specter2 results/test/gcn --models specter2 nograph-bce gcn-bce-add --output results/test/degree-specter2.json
 ```
 
+
+## 11. WP2 — Semantic Models (LSI, LDA, SPECTER2)
+
+### 11.1 Trích xuất và bàn giao Embedding (Bước 2)
+
+Chạy script sau để sinh các file `.npy` lưu tại `artifacts/embeddings/`:
+
+```shell
+python -m paperrec.extract_embeddings --models all --output-dir artifacts/embeddings
+```
+
+- `artifacts/embeddings/specter2_embeddings.npy`: Ma trận `(16980, 768)` bàn giao cho **WP3** (làm SPECTER2+GCN).
+- `artifacts/embeddings/lda_topics.npy`: Ma trận $\Theta$ `(16980, 100)` bàn giao cho bạn làm **CTR** (Collaborative Topic Regression).
+- `artifacts/embeddings/lsi_embeddings.npy`: Ma trận `(16980, 200)` cho LSI.
+
+### 11.2 Thực nghiệm và Grid Search (Bước 3)
+
+Chạy tìm kiếm số chiều ẩn $K$ cho LSI ($K \in \{100, 200, 300\}$) và LDA ($K \in \{50, 100, 150\}$):
+
+```shell
+python -m paperrec.tune --scenario both --partition validation --output results/tuning-validation
+```
+
+Chạy có thêm SPECTER2:
+```shell
+python -m paperrec.tune --scenario both --partition validation --output results/tuning-validation --include-specter2
+```
+
+### 11.3 Tích hợp Demo WP4 (Bước 4)
+
+Module `paperrec.models.specter2` cung cấp sẵn hàm `encode_arxiv_paper`:
+
+```python
+from paperrec.models.specter2 import encode_arxiv_paper
+
+title = "Attention Is All You Need"
+abstract = "The dominant sequence transduction models are based on complex recurrent or convolutional neural networks..."
+vector = encode_arxiv_paper(title, abstract)  # Trả về numpy vector (768,)
+```
