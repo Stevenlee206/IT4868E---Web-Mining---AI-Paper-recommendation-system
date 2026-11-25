@@ -15,14 +15,14 @@ Or `./demo/run.sh`, which also creates a virtual environment. Tested on Python 3
 ## Typed text
 
 TF-IDF, BM25, LSI and LDA work offline. SPECTER2 and the GCN models encode text with the
-Hugging Face API, which needs a free [token](https://huggingface.co/settings/tokens) allowed to
-call Inference Providers:
+Hugging Face API, which needs a [token](https://huggingface.co/settings/tokens) allowed to call
+Inference Providers, on an account with inference credits:
 
 ```shell
 export HF_TOKEN=hf_...
 ```
 
-Without a token, without internet, or when the API fails, the app shows TF-IDF results and says
+Without a token, credits or internet, or when the API fails, the app shows TF-IDF results and says
 so. The text you type is sent to Hugging Face only for these models.
 
 ItemKNN, WMF and Node2Vec only know papers in the list, so their text box is hidden.

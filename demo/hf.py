@@ -30,6 +30,8 @@ def request(title, abstract):
         vector = np.array(response.json(), dtype=np.float32).reshape(-1, 768)[0]
     except requests.RequestException as error:
         status = getattr(error.response, "status_code", None)
+        if status == 402:
+            raise Unavailable("no API credits on this account") from error
         raise Unavailable(f"HTTP {status}" if status else type(error).__name__) from error
     except (ValueError, TypeError) as error:
         raise Unavailable("unexpected response") from error
