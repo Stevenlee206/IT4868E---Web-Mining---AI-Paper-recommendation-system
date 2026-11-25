@@ -350,6 +350,7 @@ class SimplifiedPRSGCNRecommender(_FeatureRecommender):
                 steps += 1
             epoch_losses.append(total / steps)
 
+        self.network_ = model
         model.eval()
         with torch.no_grad():
             self.embeddings_ = model(features, inference_matrix).numpy().astype(np.float32)

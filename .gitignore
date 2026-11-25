@@ -15,6 +15,7 @@ tests/*
 !tests/test_node2vec.py
 !tests/test_gcn.py
 !tests/test_semantic.py
+!tests/test_cf.py
 
 # Heavy embeddings and model checkpoints
 *.npy

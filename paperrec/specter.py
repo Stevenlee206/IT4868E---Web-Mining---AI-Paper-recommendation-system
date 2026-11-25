@@ -32,6 +32,8 @@ CACHE_VERSION = 1
 def default_device() -> str:
     import torch
 
+    if torch.cuda.is_available():
+        return "cuda"
     return "mps" if torch.backends.mps.is_available() else "cpu"
 
 
