@@ -3,6 +3,7 @@
 Every training pair has weight 1, saved pairs have weight 1 + alpha, and pairs that a
 split holds out have weight 0. Libraries treat held-out pairs as observed zeros, which
 would break the protocol in splits.py, so ALS is written here around the pair mask.
+masked=False reproduces the library behaviour as a control.
 
 This module imports torch, so it is not exported from paperrec.models:
     from paperrec.models.wmf import WMFRecommender
@@ -41,6 +42,7 @@ class WMFRecommender(Recommender):
         alpha=40.0,
         regularization=1.0,
         iterations=20,
+        masked=True,
         batch_size=256,
         device=None,
         seed=42,
@@ -50,13 +52,15 @@ class WMFRecommender(Recommender):
         self.alpha = alpha
         self.regularization = regularization
         self.iterations = iterations
+        self.masked = masked
         self.batch_size = batch_size
         self.device = device or ("cuda" if torch.cuda.is_available() else "cpu")
 
     def get_config(self):
         return {
             **super().get_config(),
-            "method": "wmf_masked_als",
+            "method": "wmf_als",
+            "masked": self.masked,
             "factors": self.factors,
             "alpha": self.alpha,
             "regularization": self.regularization,
@@ -65,7 +69,9 @@ class WMFRecommender(Recommender):
 
     def _fit(self):
         n_users, n_items = self.train.shape
-        allowed = self.training_mask(np.arange(n_users))
+        allowed = np.ones((n_users, n_items), dtype=bool)
+        if self.masked:
+            allowed = self.training_mask(np.arange(n_users))
         positives = torch.from_numpy(self.train.toarray().astype(np.float32)).to(self.device)
         weights = torch.from_numpy(allowed.astype(np.float32)).to(self.device)
         weights = weights + self.alpha * positives

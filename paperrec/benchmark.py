@@ -21,7 +21,7 @@ from .splits import load_folds, load_split
 
 KS = (5, 10, 20, 50)
 TOP = 20
-WARM_ONLY = ("node2vec-bipartite",)
+WARM_ONLY = ("wmf-unmasked", "node2vec-bipartite")
 MODELS = (
     "tfidf",
     "bm25",
@@ -29,6 +29,7 @@ MODELS = (
     "lda",
     "item-knn",
     "wmf",
+    "wmf-unmasked",
     "specter2-base",
     "specter2-adapter",
     "node2vec-citation",
@@ -37,12 +38,14 @@ MODELS = (
     "nograph-bce",
     "gcn-bce-add",
 )
+WMF_GRID = [
+    {"factors": f, "alpha": a, "regularization": r}
+    for f, a, r in product((64, 128), (5.0, 40.0), (1.0, 10.0, 100.0))
+]
 GRIDS = {
     "item-knn": [{"neighbors": k} for k in (50, 100, 200, 400)],
-    "wmf": [
-        {"factors": f, "alpha": a, "regularization": r}
-        for f, a, r in product((64, 128), (5.0, 40.0), (1.0, 10.0, 100.0))
-    ],
+    "wmf": WMF_GRID,
+    "wmf-unmasked": WMF_GRID,
 }
 
 
@@ -69,10 +72,10 @@ def make_factory(name, scenario, dataset, features_dir, settings):
         from .models.item_knn import ItemKNNRecommender
 
         return lambda: ItemKNNRecommender(**settings)
-    if name == "wmf":
+    if name in ("wmf", "wmf-unmasked"):
         from .models.wmf import WMFRecommender
 
-        return lambda: WMFRecommender(**settings)
+        return lambda: WMFRecommender(masked=name == "wmf", **settings)
     if name == "specter2-base":
         from .models import SPECTER2Recommender
 

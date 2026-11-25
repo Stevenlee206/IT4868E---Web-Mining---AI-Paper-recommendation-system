@@ -32,6 +32,7 @@ LABELS = {
     "lda": "LDA ($K{=}150$)",
     "item-knn": "ItemKNN",
     "wmf": "WMF (masked)",
+    "wmf-unmasked": "WMF (unmasked control)",
     "specter2-base": "SPECTER2 base",
     "specter2-adapter": "SPECTER2 + adapter",
     "node2vec-citation": "Node2Vec citation",
@@ -102,9 +103,11 @@ def write_tables(reports):
                     cells.append(text)
                 mark = "$^\\dagger$" if scenario == "cold" and model in CF else ""
                 lines.append(f"{LABELS[model]}{mark} & " + " & ".join(cells) + r" \\")
-                if model in ("bm25", "lda", "wmf", "specter2-adapter", "node2vec-citation") and (
+                if model in ("bm25", "lda", "specter2-adapter", "node2vec-citation") and (
                     model != "node2vec-citation" or scenario == "cold"
                 ):
+                    lines.append(r"\addlinespace")
+                if model == ("wmf-unmasked" if scenario == "warm" else "wmf"):
                     lines.append(r"\addlinespace")
                 if model == "node2vec-bipartite":
                     lines.append(r"\addlinespace")

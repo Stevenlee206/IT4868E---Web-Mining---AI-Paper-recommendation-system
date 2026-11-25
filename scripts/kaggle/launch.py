@@ -19,7 +19,8 @@ import time
 from pathlib import Path
 
 ROOT = Path(__file__).resolve().parents[2]
-GROUPS = ("encode", "wmf", "cpu", "gcn")
+GROUPS = ("encode", "wmf", "control", "cpu", "gcn")
+GPU_GROUPS = ("encode", "wmf", "control")
 DATASET = "paperrec-benchmark-bundle"
 RESULTS = ROOT / "results" / "kaggle"
 
@@ -71,13 +72,13 @@ def push(user, group):
             "language": "python",
             "kernel_type": "script",
             "is_private": True,
-            "enable_gpu": group in ("encode", "wmf"),
+            "enable_gpu": group in GPU_GROUPS,
             "enable_internet": True,
             "dataset_sources": [f"{user}/{DATASET}"],
             "kernel_sources": [f"{user}/paperrec-encode"] if group == "gcn" else [],
         }
         (folder / "kernel-metadata.json").write_text(json.dumps(metadata))
-        extra = ("--accelerator", "NvidiaTeslaT4") if group in ("encode", "wmf") else ()
+        extra = ("--accelerator", "NvidiaTeslaT4") if group in GPU_GROUPS else ()
         print(kaggle("kernels", "push", "-p", str(folder), *extra).strip(), flush=True)
 
 

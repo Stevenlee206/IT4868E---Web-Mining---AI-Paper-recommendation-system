@@ -15,6 +15,7 @@ OUTPUT, FEATURES, LOGS = WORK / "benchmark", WORK / "features", WORK / "logs"
 JOBS = {
     "encode": [],
     "wmf": ["wmf"],
+    "control": ["wmf-unmasked"],
     "cpu": ["tfidf", "bm25", "lsi", "lda", "item-knn", "node2vec-citation", "node2vec-bipartite"],
     "gcn": ["specter2-base", "specter2-adapter", "gcn-bce", "nograph-bce", "gcn-bce-add"],
 }
@@ -63,8 +64,8 @@ def main():
                "--models", "specter2", "--output-dir", str(FEATURES / "base"))
         )  # fmt: skip
         shutil.move(FEATURES / "base" / "specter2_embeddings.npy", FEATURES / "specter2_base.npy")
-    elif GROUP == "wmf":
-        codes.append(benchmark("tune-wmf", "tune", "--models", "wmf"))
+    elif GROUP in ("wmf", "control"):
+        codes.append(benchmark("tune", "tune", "--models", *JOBS[GROUP]))
     elif GROUP == "cpu":
         codes.append(benchmark("tune-item-knn", "tune", "--models", "item-knn"))
     else:
@@ -75,7 +76,7 @@ def main():
         (model, scenario)
         for scenario in ("warm", "cold")
         for model in JOBS[GROUP]
-        if not (model == "node2vec-bipartite" and scenario == "cold")
+        if not (scenario == "cold" and model in ("wmf-unmasked", "node2vec-bipartite"))
     ]
 
     def job(task):
@@ -83,7 +84,7 @@ def main():
         name = f"{scenario}-{model}"
         return benchmark(name, "run", "--model", model, "--scenario", scenario, env=ENV)
 
-    with ThreadPoolExecutor(1 if GROUP == "wmf" else os.cpu_count()) as pool:
+    with ThreadPoolExecutor(1 if GROUP in ("wmf", "control") else os.cpu_count()) as pool:
         codes += pool.map(job, tasks)
     if GROUP == "gcn":
         codes.append(benchmark("export-demo", "export-demo"))
