@@ -1,7 +1,8 @@
 """Run the benchmark on Kaggle and download the results.
 
     python scripts/kaggle/launch.py          # upload, run all kernels, wait, download
-    python scripts/kaggle/launch.py wmf gcn  # rerun some kernels, then wait for all
+    python scripts/kaggle/launch.py wmf gcn  # run only some kernels
+    python scripts/kaggle/launch.py demo     # export the demo data
     python scripts/kaggle/launch.py download # only fetch finished results
 
 Needs the Kaggle CLI (`pip install kaggle`) and a configured account. The dataset and
@@ -75,7 +76,7 @@ def push(user, group):
             "enable_gpu": group in GPU_GROUPS,
             "enable_internet": True,
             "dataset_sources": [f"{user}/{DATASET}"],
-            "kernel_sources": [f"{user}/paperrec-encode"] if group == "gcn" else [],
+            "kernel_sources": [f"{user}/paperrec-encode"] if group in ("gcn", "demo") else [],
         }
         (folder / "kernel-metadata.json").write_text(json.dumps(metadata))
         extra = ("--accelerator", "NvidiaTeslaT4") if group in GPU_GROUPS else ()
@@ -119,14 +120,15 @@ def main():
     groups = sys.argv[1:] or GROUPS
     upload(user)
     for group in groups:
-        if group != "gcn":
+        if group not in ("gcn", "demo"):
             push(user, group)
-    if "gcn" in groups:  # Needs the encoded features.
-        wait(user, "encode")
-        push(user, "gcn")
-    for group in GROUPS:
+    for group in groups:
+        if group in ("gcn", "demo"):  # Need the encoded features.
+            wait(user, "encode")
+            push(user, group)
+    for group in groups:
         wait(user, group)
-    download(user)
+    download(user, groups)
 
 
 if __name__ == "__main__":

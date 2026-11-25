@@ -19,6 +19,7 @@ tests/*
 
 # Heavy embeddings and model checkpoints
 *.npy
+!demo/demo_data/*.npy
 *.pt
 *.bin
 artifacts/embeddings/

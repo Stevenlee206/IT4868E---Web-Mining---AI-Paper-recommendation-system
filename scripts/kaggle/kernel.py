@@ -17,6 +17,7 @@ JOBS = {
     "wmf": ["wmf"],
     "control": ["wmf-unmasked"],
     "cpu": ["tfidf", "bm25", "lsi", "lda", "item-knn", "node2vec-citation", "node2vec-bipartite"],
+    "demo": [],
     "gcn": ["specter2-base", "specter2-adapter", "gcn-bce", "nograph-bce", "gcn-bce-add"],
 }
 
@@ -48,7 +49,7 @@ def main():
     with tarfile.open(bundle) as archive:
         archive.extractall(REPO, filter="data")
     packages = ["gensim>=4.4,<5", "psutil"]
-    if GROUP in ("encode", "gcn"):
+    if GROUP in ("encode", "gcn", "demo"):
         packages += ["transformers>=4.40,<5", "adapters>=1,<2"]
     codes = [sh("pip", sys.executable, "-m", "pip", "install", "-q", *packages)]
     sh("versions", sys.executable, "-m", "pip", "freeze")
@@ -71,6 +72,12 @@ def main():
     else:
         source = next(INPUT.rglob("specter2_base.npy")).parent
         shutil.copytree(source, FEATURES, dirs_exist_ok=True)
+
+    if GROUP == "demo":
+        codes.append(
+            sh("export-demo", sys.executable, "-m", "paperrec.export_demo",
+               "--features", str(FEATURES), "--output", str(WORK))
+        )  # fmt: skip
 
     tasks = [
         (model, scenario)
