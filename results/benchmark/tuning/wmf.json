@@ -1,0 +1,117 @@
+{
+ "best": {
+  "factors": 128,
+  "alpha": 40.0,
+  "regularization": 10.0
+ },
+ "grid": [
+  {
+   "settings": {
+    "factors": 64,
+    "alpha": 5.0,
+    "regularization": 1.0
+   },
+   "ndcg@20": 0.3876481343095181,
+   "recall@20": 0.5637771041492186
+  },
+  {
+   "settings": {
+    "factors": 64,
+    "alpha": 5.0,
+    "regularization": 10.0
+   },
+   "ndcg@20": 0.3805612884449061,
+   "recall@20": 0.5536075700641458
+  },
+  {
+   "settings": {
+    "factors": 64,
+    "alpha": 5.0,
+    "regularization": 100.0
+   },
+   "ndcg@20": 0.14109862037664364,
+   "recall@20": 0.21144879427732646
+  },
+  {
+   "settings": {
+    "factors": 64,
+    "alpha": 40.0,
+    "regularization": 1.0
+   },
+   "ndcg@20": 0.43560052712065767,
+   "recall@20": 0.6183491583640311
+  },
+  {
+   "settings": {
+    "factors": 64,
+    "alpha": 40.0,
+    "regularization": 10.0
+   },
+   "ndcg@20": 0.4359020829131702,
+   "recall@20": 0.6213635208538588
+  },
+  {
+   "settings": {
+    "factors": 64,
+    "alpha": 40.0,
+    "regularization": 100.0
+   },
+   "ndcg@20": 0.4246482332839198,
+   "recall@20": 0.6098794955604373
+  },
+  {
+   "settings": {
+    "factors": 128,
+    "alpha": 5.0,
+    "regularization": 1.0
+   },
+   "ndcg@20": 0.446510286071581,
+   "recall@20": 0.6198442883111663
+  },
+  {
+   "settings": {
+    "factors": 128,
+    "alpha": 5.0,
+    "regularization": 10.0
+   },
+   "ndcg@20": 0.44269190641639355,
+   "recall@20": 0.615557177864453
+  },
+  {
+   "settings": {
+    "factors": 128,
+    "alpha": 5.0,
+    "regularization": 100.0
+   },
+   "ndcg@20": 0.14228330900382394,
+   "recall@20": 0.21300412671346455
+  },
+  {
+   "settings": {
+    "factors": 128,
+    "alpha": 40.0,
+    "regularization": 1.0
+   },
+   "ndcg@20": 0.47649778249782,
+   "recall@20": 0.641161012067025
+  },
+  {
+   "settings": {
+    "factors": 128,
+    "alpha": 40.0,
+    "regularization": 10.0
+   },
+   "ndcg@20": 0.4793018462496407,
+   "recall@20": 0.6454315205716935
+  },
+  {
+   "settings": {
+    "factors": 128,
+    "alpha": 40.0,
+    "regularization": 100.0
+   },
+   "ndcg@20": 0.47051016552423913,
+   "recall@20": 0.6493497893297335
+  }
+ ]
+}

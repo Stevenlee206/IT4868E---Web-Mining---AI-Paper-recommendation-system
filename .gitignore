@@ -8,6 +8,7 @@ __pycache__/
 results/*
 !results/tuning_summary.md
 !results/error_analysis.md
+!results/benchmark/
 .cache/
 tests/*
 !tests/test_lexical.py
@@ -26,3 +27,13 @@ L08-RecommendationSystems.pdf
 
 # Reproducible lexical and semantic features generated locally
 artifacts/features/
+
+# LaTeX build files
+report/**/*.aux
+report/**/*.log
+report/**/*.out
+report/**/*.fls
+report/**/*.fdb_latexmk
+report/**/*.nav
+report/**/*.snm
+report/**/*.toc

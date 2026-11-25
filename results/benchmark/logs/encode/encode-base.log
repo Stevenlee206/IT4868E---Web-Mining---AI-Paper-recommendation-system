@@ -1,0 +1,23 @@
+/tmp/paperrec/paperrec/extract_embeddings.py:145: UnicodeWarning: 13 papers have text fields that could not be decoded as UTF-8. These fields were preserved using Latin-1; inspect dataset.text_decode_fallback_ids before using the text.
+  dataset = load_citeulike_a(args.data)
+--> Extracting SPECTER2 embeddings for 16980 papers...
+    Using device: cuda
+WARNING: All log messages before absl::InitializeLog() is called are written to STDERR
+I0000 00:00:1795580326.770187      97 cudart_stub.cc:31] Could not find cuda drivers on your machine, GPU will not be used.
+    Batch 20/266 done
+    Batch 40/266 done
+    Batch 60/266 done
+    Batch 80/266 done
+    Batch 100/266 done
+    Batch 120/266 done
+    Batch 140/266 done
+    Batch 160/266 done
+    Batch 180/266 done
+    Batch 200/266 done
+    Batch 220/266 done
+    Batch 240/266 done
+    Batch 260/266 done
+    Batch 266/266 done
+--> [WP3 Delivery] Saved SPECTER2 embeddings to /kaggle/working/features/base/specter2_embeddings.npy (shape=(16980, 768))
+
+[Done] All requested embeddings exported successfully.

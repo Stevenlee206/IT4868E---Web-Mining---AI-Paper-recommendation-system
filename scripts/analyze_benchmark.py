@@ -114,6 +114,31 @@ def write_tables(reports):
             (GENERATED / f"{scenario}_{partition}.tex").write_text("\n".join(lines) + "\n")
 
 
+def write_overview(reports):
+    """Warm and cold test results side by side, for the slides and the paper's main table."""
+    columns = [(s, m) for s in ("warm", "cold") for m in ("recall@20", "ndcg@20", "mrr")]
+    chosen = [m for m in MODELS if m != "wmf-unmasked"]
+    best = {
+        (s, m): max(reports[s, x]["test"][m]["mean"] for x in chosen if (s, x) in reports)
+        for s, m in columns
+    }
+    lines = []
+    for model in chosen:
+        cells = []
+        for scenario, metric in columns:
+            if (scenario, model) not in reports:
+                cells.append("--")
+                continue
+            value = reports[scenario, model]["test"][metric]["mean"]
+            text = f"{value:.4f}"
+            cells.append(f"\\textbf{{{text}}}" if value == best[scenario, metric] else text)
+        mark = "$^\\dagger$" if model in CF else ""
+        lines.append(f"{LABELS[model]}{mark} & " + " & ".join(cells) + r" \\")
+        if model in ("bm25", "lda", "wmf", "specter2-adapter", "node2vec-bipartite"):
+            lines.append(r"\addlinespace")
+    (GENERATED / "overview.tex").write_text("\n".join(lines) + "\n")
+
+
 def paired(reports, scenario, partition, a, b):
     """Fold-level and user-level paired differences a - b."""
     result = {}
@@ -382,6 +407,7 @@ def write_analysis_tables(output):
 def main():
     reports = load_reports()
     write_tables(reports)
+    write_overview(reports)
     output = analyze(load_citeulike_a(ROOT / "data" / "raw" / "citeulike-a"), reports)
     (RESULTS / "error_analysis.json").write_text(json.dumps(output, indent=1), encoding="utf-8")
     write_analysis_tables(output)

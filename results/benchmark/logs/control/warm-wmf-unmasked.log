@@ -1,0 +1,7 @@
+/tmp/paperrec/paperrec/benchmark.py:122: UnicodeWarning: 13 papers have text fields that could not be decoded as UTF-8. These fields were preserved using Latin-1; inspect dataset.text_decode_fallback_ids before using the text.
+  dataset = load_citeulike_a(args.data)
+warm wmf-unmasked fold 0: val R@20=0.6456 test R@20=0.5221
+warm wmf-unmasked fold 1: val R@20=0.6322 test R@20=0.5154
+warm wmf-unmasked fold 2: val R@20=0.6252 test R@20=0.5258
+warm wmf-unmasked fold 3: val R@20=0.6366 test R@20=0.5216
+warm wmf-unmasked fold 4: val R@20=0.6343 test R@20=0.5293

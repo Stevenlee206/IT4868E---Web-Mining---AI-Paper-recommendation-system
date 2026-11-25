@@ -1,0 +1,7 @@
+/tmp/paperrec/paperrec/benchmark.py:119: UnicodeWarning: 13 papers have text fields that could not be decoded as UTF-8. These fields were preserved using Latin-1; inspect dataset.text_decode_fallback_ids before using the text.
+  dataset = load_citeulike_a(args.data)
+cold specter2-base fold 0: val R@20=0.4282 test R@20=0.3100
+cold specter2-base fold 1: val R@20=0.4237 test R@20=0.2983
+cold specter2-base fold 2: val R@20=0.4129 test R@20=0.3084
+cold specter2-base fold 3: val R@20=0.4111 test R@20=0.3056
+cold specter2-base fold 4: val R@20=0.4232 test R@20=0.3081

@@ -1,0 +1,17 @@
+TF-IDF & 0.2419 & 0.3260 {\scriptsize$\pm$0.0095} & 0.4485 & 0.1879 & 0.2152 & 0.2629 \\
+BM25 & 0.1578 & 0.2240 {\scriptsize$\pm$0.0125} & 0.3434 & 0.1178 & 0.1397 & 0.1732 \\
+\addlinespace
+LSI ($K{=}300$) & 0.2499 & 0.3409 {\scriptsize$\pm$0.0112} & 0.4638 & 0.1922 & 0.2217 & 0.2664 \\
+LDA ($K{=}150$) & 0.1264 & 0.1998 {\scriptsize$\pm$0.0071} & 0.3330 & 0.0941 & 0.1178 & 0.1531 \\
+\addlinespace
+ItemKNN$^\dagger$ & 0.0083 & 0.0140 {\scriptsize$\pm$0.0032} & 0.0316 & 0.0056 & 0.0076 & 0.0166 \\
+WMF (masked)$^\dagger$ & 0.0083 & 0.0140 {\scriptsize$\pm$0.0032} & 0.0316 & 0.0056 & 0.0076 & 0.0166 \\
+\addlinespace
+SPECTER2 base & 0.2991 & 0.4198 {\scriptsize$\pm$0.0074} & 0.5982 & 0.2256 & 0.2655 & 0.2985 \\
+SPECTER2 + adapter & 0.3003 & 0.4223 {\scriptsize$\pm$0.0094} & 0.5998 & 0.2291 & 0.2692 & 0.3059 \\
+\addlinespace
+Node2Vec citation & 0.2424 & 0.3182 {\scriptsize$\pm$0.0079} & 0.4190 & 0.2002 & 0.2242 & 0.2896 \\
+\addlinespace
+Plain GCN (\texttt{gcn-bce}) & 0.3653 & 0.4973 {\scriptsize$\pm$0.0085} & 0.6728 & 0.2894 & 0.3316 & 0.3775 \\
+No graph (\texttt{nograph-bce}) & 0.3833 & 0.5160 {\scriptsize$\pm$0.0081} & 0.6862 & 0.3037 & 0.3462 & 0.3935 \\
+Residual GCN (\texttt{gcn-bce-add}) & \textbf{0.3970} & \textbf{0.5297} {\scriptsize$\pm$0.0103} & \textbf{0.6967} & \textbf{0.3196} & \textbf{0.3617} & \textbf{0.4137} \\

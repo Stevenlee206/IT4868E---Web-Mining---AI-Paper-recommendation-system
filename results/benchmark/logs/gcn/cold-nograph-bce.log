@@ -1,0 +1,9 @@
+/tmp/paperrec/paperrec/benchmark.py:119: UnicodeWarning: 13 papers have text fields that could not be decoded as UTF-8. These fields were preserved using Latin-1; inspect dataset.text_decode_fallback_ids before using the text.
+  dataset = load_citeulike_a(args.data)
+/tmp/paperrec/paperrec/models/gcn.py:49: UserWarning: Sparse invariant checks are implicitly disabled. Memory errors (e.g. SEGFAULT) will occur when operating on a sparse tensor which violates the invariants, but checks incur performance overhead. To silence this warning, explicitly opt in or out. See `torch.sparse.check_sparse_tensor_invariants.__doc__` for guidance.  (Triggered internally at /pytorch/aten/src/ATen/Context.cpp:760.)
+  return torch.sparse_coo_tensor(
+cold nograph-bce fold 0: val R@20=0.5236 test R@20=0.3860
+cold nograph-bce fold 1: val R@20=0.5169 test R@20=0.3841
+cold nograph-bce fold 2: val R@20=0.5222 test R@20=0.3841
+cold nograph-bce fold 3: val R@20=0.5033 test R@20=0.3908
+cold nograph-bce fold 4: val R@20=0.5140 test R@20=0.3915

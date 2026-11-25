@@ -1,0 +1,255 @@
+\documentclass[10pt]{article}
+\usepackage[T1]{fontenc}
+\usepackage{times}
+\usepackage[textwidth=5.5in,textheight=9in]{geometry}
+\usepackage{amsmath,amssymb,booktabs,graphicx,microtype,tikz,pgfplots}
+\usepackage[numbers]{natbib}
+\usepackage[colorlinks,allcolors=blue!50!black]{hyperref}
+\pgfplotsset{compat=1.17}
+\usetikzlibrary{arrows.meta,positioning}
+\definecolor{cnone}{HTML}{2A78D6}
+\definecolor{cres}{HTML}{EB6834}
+\definecolor{cgcn}{HTML}{1BAF7A}
+\makeatletter\newcommand\rows[1]{\@@input generated/#1.tex }\makeatother
+\title{\textbf{When Do Citations Help? A Unified Benchmark of Content, Collaborative and Graph Methods for Scientific Paper Recommendation}}
+\author{PaperRec Project, IT4868E Web Mining}
+\date{}
+\begin{document}
+\maketitle
+
+\begin{abstract}
+We compare thirteen recommenders on CiteULike-a under one protocol: the same five warm-start and five cold-start folds, the same candidate pools and the same metrics. The methods cover lexical retrieval, topic models, collaborative filtering, pretrained text encoders, random-walk graph embeddings and graph convolution over citations. Three results stand out. First, in warm-start, weighted matrix factorization reaches a test Recall@20 of 0.522 and a simple item-based nearest-neighbour model 0.450, both above every content and citation-graph model we tested. Second, in cold-start those collaborative models fall to chance, and a residual graph convolution over SPECTER2 features is best, with a Recall@20 of 0.400 against 0.387 for the same network without citations. Third, this average gain hides a reversal. The residual model gains 0.117 hit rate on held-out papers with at least eight visible citations and loses 0.066 on papers with none. A newly published paper has no citations, so the model that wins on average is not the one to prefer for the papers where cold-start matters most.
+\end{abstract}
+
+\section{Introduction}
+Recommending papers to researchers involves two different problems. For papers that other users have already saved, behaviour is a strong signal. For new papers no behaviour exists, and a system must rely on text, citations or both. Results for these two settings are often reported for different methods, on different splits, which makes it hard to say which kind of signal matters when.
+
+This paper reports a single benchmark for both settings on CiteULike-a. All methods share their folds, candidate pools, metrics and tie-breaking. Our main question is whether citations improve recommendation beyond a strong pretrained text encoder, and for which papers. We make three contributions.
+
+\begin{itemize}
+\item A unified warm-start and cold-start benchmark of thirteen methods, with settings chosen on validation data and leakage rules for the citation graph.
+\item A control experiment that separates the effect of citations from the effect of training: the same network, loss and training data, with and without the graph.
+\item An error analysis showing that the benefit of citations depends on how many citations a paper has and on whether they lead to the user's own library.
+\end{itemize}
+
+\section{Related Work}
+\paragraph{Content and topic models.} TF-IDF weighting \citep{salton1988} and BM25 \citep{robertson2009} are standard lexical methods. Latent semantic indexing \citep{deerwester1990} and latent Dirichlet allocation \citep{blei2003} represent documents in a lower-dimensional space. Collaborative topic regression \citep{wang2011} joins topic models with matrix factorization and introduced the in-matrix and out-of-matrix evaluation that our warm and cold settings follow. CiteULike-a was released with its socially regularized extension \citep{wang2013}.
+
+\paragraph{Collaborative filtering.} Item-based nearest neighbours \citep{sarwar2001} and weighted matrix factorization for implicit feedback \citep{hu2008} are long-standing methods. Later studies found that well-tuned versions of such methods are hard to beat \citep{dacrema2019,rendle2022}. Our warm-start results agree.
+
+\paragraph{Pretrained document encoders.} SPECTER \citep{cohan2020} trains a transformer on citation links. SPECTER2, released with SciRepEval \citep{singh2023}, adds task-specific adapters.
+
+\paragraph{Graph methods.} Node2Vec \citep{grover2016} learns embeddings from biased random walks. Graph convolutional networks \citep{kipf2017} average features over neighbours, and SGC \citep{wu2019} and LightGCN \citep{he2020} show that much of their benefit remains without nonlinearities. PR-SGCN \citep{guo2025} combines SPECTER with graph convolution for paper recommendation, on other datasets. Our plain GCN is a simplified adaptation to CiteULike-a and not a reproduction of that method.
+
+\section{Methodology}
+\subsection{Setting}
+Let $\mathbf{R}\in\{0,1\}^{U\times I}$ hold the saves of $U$ users on $I$ papers. For user $u$ with training saves $\mathcal{P}_u$, a model scores all candidate papers and ranks them. Except for the two collaborative models, every method maps paper $i$ to a vector $\mathbf{z}_i$ and, with BM25 also excepted, scores it by its cosine with the user's profile,
+\begin{equation}
+s(u,i)=\frac{\mathbf{z}_i^\top\mathbf{c}_u}{\lVert\mathbf{z}_i\rVert\,\lVert\mathbf{c}_u\rVert},\qquad \mathbf{c}_u=\sum_{j\in\mathcal{P}_u}\frac{\mathbf{z}_j}{\lVert\mathbf{z}_j\rVert}.
+\end{equation}
+BM25 uses the distinct terms of the profile as its query.
+
+\subsection{Methods}
+\paragraph{Lexical and topic.} TF-IDF and BM25 ($k_1=1.2$, $b=0.75$) use default settings. LSI uses 300 dimensions and LDA 150 topics. All text statistics are fitted on training papers only.
+
+\paragraph{Collaborative.} ItemKNN sums the cosine similarity between a candidate and the saved papers, keeping 400 neighbours per paper. Weighted matrix factorization (WMF) minimizes
+\begin{equation}
+\sum_{(u,i)}w_{ui}\,(r_{ui}-\mathbf{x}_u^\top\mathbf{y}_i)^2+\lambda\Big(\sum_u\lVert\mathbf{x}_u\rVert^2+\sum_i\lVert\mathbf{y}_i\rVert^2\Big)
+\end{equation}
+by alternating least squares, with $w_{ui}=1+\alpha r_{ui}$ for training pairs and $w_{ui}=0$ for held-out pairs. A control version gives held-out pairs weight 1, as common libraries do.
+
+\paragraph{Pretrained text.} SPECTER2 encodes title and abstract into 768 dimensions. We test the base encoder alone and the base encoder with the proximity adapter. Neither is trained further.
+
+\paragraph{Node2Vec.} We embed the citation graph and, for warm-start only, the user--paper graph of training saves (128 dimensions, 10 walks of length 80; $p=4,q=1$ for warm citations, $p=0.25,q=1$ for the user--paper graph and $p=q=1$ when cold). When cold, a held-out paper receives the mean embedding of its citation neighbours among training papers.
+
+\paragraph{Learned projection and graph convolution.} Let $\mathbf{H}$ hold the L2-normalized SPECTER2 features with the proximity adapter. Three models share one linear layer $\phi$ with 128 outputs:
+\begin{align}
+\texttt{nograph-bce}:&\quad \mathbf{Z}=\phi(\mathbf{H})\\
+\texttt{gcn-bce}:&\quad \mathbf{Z}=\phi(\mathbf{A}\mathbf{H})\\
+\texttt{gcn-bce-add}:&\quad \mathbf{Z}=\phi(\mathbf{H}+\mathbf{A}\mathbf{H})
+\end{align}
+where rows of $\mathbf{Z}$ are L2-normalized and $\mathbf{A}$ is the citation graph with self-loops, weighted by $1/\sqrt{d_i d_j}$. Here $d_i$ counts the messages paper $i$ receives, plus one. Training uses leave-one-out triplets: one saved paper is the positive, the user's other saved papers form the profile, and five unsaved papers from the training pairs are negatives. The loss is binary cross-entropy on ten times the cosine. Because the three models differ only in their input to $\phi$, any gap between them is due to the graph. Figure~\ref{fig:architecture} shows the pipeline.
+
+\begin{figure}[t]
+\centering
+\begin{tikzpicture}[node distance=5mm and 7mm,font=\small,
+  box/.style={draw=black!60,rounded corners=2pt,align=center,minimum height=9mm,inner xsep=5pt},
+  arr/.style={-{Stealth[length=2mm]},black!70}]
+\node[box] (text) {Title and\\abstract};
+\node[box,right=of text] (enc) {SPECTER2 +\\adapter (frozen)};
+\node[box,right=of enc] (h) {$\mathbf{H}$};
+\node[box,below=8mm of h] (ah) {$\mathbf{A}\mathbf{H}$};
+\node[box,left=of ah] (cit) {Citation graph $\mathbf{A}$\\(train papers send)};
+\node[circle,draw=black!60,right=of h,inner sep=1pt] (plus) {$+$};
+\node[box,right=of plus] (phi) {Linear $\phi$\\768 to 128};
+\node[box,right=of phi] (score) {Cosine with\\user profile};
+\draw[arr] (text)--(enc);\draw[arr] (enc)--(h);\draw[arr] (h)--(plus);\draw[arr] (h)--(ah);
+\draw[arr] (cit)--(ah);\draw[arr] (ah)-|(plus);\draw[arr] (plus)--(phi);\draw[arr] (phi)--(score);
+\end{tikzpicture}
+\caption{The residual model \texttt{gcn-bce-add}. Removing the lower path gives \texttt{nograph-bce}; removing the direct path from $\mathbf{H}$ to the sum gives \texttt{gcn-bce}.}
+\label{fig:architecture}
+\end{figure}
+
+\subsection{Leakage rules for citations}
+Citations are metadata and are not derived from saves, so warm models use all of them. When cold, the training graph keeps only edges between training papers. At inference a held-out paper receives messages from training papers but sends none, so training embeddings do not depend on held-out papers and validation and test papers cannot influence each other. Edges between two held-out papers are excluded.
+
+\section{Experimental Setup}
+\paragraph{Data.} CiteULike-a has 5,551 users, 16,980 papers, 204,986 saves and 44,661 undirected citation links after removing self-loops. No citation is recorded for 31.2\% of the papers.
+
+\paragraph{Splits.} Each setting has five folds with roughly 70/10/20 train, validation and test data. Warm folds split user--paper pairs within each paper; papers with fewer than five saves stay in training. Cold folds hold out whole papers. Candidates are all pairs assigned to the evaluated partition, saved or not. Every model of a setting was checked to have used identical split fingerprints.
+
+\paragraph{Metrics.} We report Recall@$k$, NDCG@$k$ and MRR, averaged over users and then over folds; $\pm$ is the sample standard deviation over folds. Confidence intervals resample users with 2,000 bootstrap draws, after averaging each user over folds. Scores that tie are ordered by a fixed seeded permutation.
+
+\paragraph{Model selection.} No setting was chosen on test data. ItemKNN and WMF were tuned on the validation part of warm fold 0 by NDCG@20, selecting 400 neighbours, and 128 factors with $\alpha=40$ and $\lambda=10$. Node2Vec and the network settings had been chosen on validation fold 0 earlier in the project, and the LSI and LDA sizes by five-fold validation. The residual model was designed after seeing that the plain GCN lost to the no-graph model on validation, so its validation score is optimistic. Tuning effort was not equal: TF-IDF and BM25 were not tuned at all.
+
+\paragraph{Compute.} All methods were run on Kaggle. Encoding and WMF used a T4 GPU; the networks were trained on CPU with seed 42. The content, Node2Vec-citation and network scores agree with earlier independent runs on a different machine to about three or four decimals.
+
+\section{Benchmark Results}
+Table~\ref{tab:warm} and Table~\ref{tab:cold} give the test results. Validation results, all cutoffs and per-fold values are in \texttt{results/benchmark}. Test and validation recall should not be compared with each other, because test holds out about twice as many saves per user.
+
+\begin{table}[t]
+\centering\small
+\caption{Warm-start test results (mean over five folds). Best value in bold.}
+\label{tab:warm}
+\resizebox{\linewidth}{!}{%
+\begin{tabular}{lcccccc}
+\toprule
+Model & R@10 & R@20 & R@50 & NDCG@10 & NDCG@20 & MRR \\
+\midrule
+\rows{warm_test}
+\bottomrule
+\end{tabular}}
+\end{table}
+
+\begin{table}[t]
+\centering\small
+\caption{Cold-start test results (mean over five folds). Best value in bold. $\dagger$: no signal for unseen papers, so the ranking is a random permutation. Node2Vec on the user--paper graph cannot embed cold papers and is omitted.}
+\label{tab:cold}
+\resizebox{\linewidth}{!}{%
+\begin{tabular}{lcccccc}
+\toprule
+Model & R@10 & R@20 & R@50 & NDCG@10 & NDCG@20 & MRR \\
+\midrule
+\rows{cold_test}
+\bottomrule
+\end{tabular}}
+\end{table}
+
+\paragraph{Warm-start.} Collaborative models lead clearly. WMF reaches a Recall@20 of 0.5222 and ItemKNN 0.4503, against 0.4150 for the best citation model. The WMF lead does not come from masking held-out pairs: the unmasked control scores 0.5228. We also checked that the mask carries no label information. Saves and non-saves are held out at the same rate (19.98\% and 20.00\% on fold 0), and the share held out per user is unrelated to the number of saves. ItemKNN never uses the mask.
+
+\paragraph{Cold-start.} ItemKNN and WMF score 0.0068, identical to each other, because both give every unseen paper a score of zero. Text models change little from warm to cold. The residual GCN is best at 0.4000.
+
+\paragraph{What citations add.} Table~\ref{tab:paired} isolates each step. Training a linear projection on saves gives the largest gain, $+0.075$ Recall@20 over SPECTER2 in cold-start. Replacing the features with their neighbourhood average, as the plain GCN does, loses $0.020$. Adding the average to the features instead gains $0.013$. These signs hold in all five folds and both settings. The proximity adapter gives a small gain over the base encoder, about $0.006$.
+
+\begin{table}[t]
+\centering\small
+\caption{Paired test differences, with user-bootstrap 95\% intervals and the number of folds in which the first model is higher.}
+\label{tab:paired}
+\resizebox{\linewidth}{!}{%
+\begin{tabular}{llcccccc}
+\toprule
+ & & \multicolumn{3}{c}{Recall@20} & \multicolumn{3}{c}{NDCG@20} \\
+Setting & Comparison & Gap & 95\% interval & Folds & Gap & 95\% interval & Folds \\
+\midrule
+\rows{paired_test}
+\bottomrule
+\end{tabular}}
+\end{table}
+
+\section{Error Analysis: Citations in Cold-Start}
+We compare \texttt{gcn-bce-add} with \texttt{nograph-bce} on cold test papers. Over the five folds there are 204,986 held-out user--paper pairs. The residual model alone finds 10,926 of them in its top 20, the no-graph model alone finds 8,627, both find 55,695 and neither finds 129,738. Per user and fold, Recall@20 improves in 21\% of cases, worsens in 15\% and ties in the rest. The net gain is therefore the difference between two large opposing effects.
+
+\subsection{The gain reverses with the number of citations}
+Figure~\ref{fig:degree} and Table~\ref{tab:degree} group held-out pairs by the number of citations visible to the model at inference. The no-graph model is nearly flat across groups. The residual model rises from 0.2459 for papers with no citations to 0.4360 for papers with eight or more. It is worse than the no-graph model in all five folds for papers with zero or one citation, which make up 44\% of the pairs.
+
+\begin{figure}[t]
+\centering
+\begin{tikzpicture}
+\begin{axis}[ybar=1.5pt,bar width=9pt,width=0.95\linewidth,height=5.2cm,
+  ymin=0,ymax=0.5,ytick={0,0.1,0.2,0.3,0.4,0.5},
+  symbolic x coords={0,1,2--3,4--7,8+},xtick=data,enlarge x limits=0.13,
+  xlabel={Citations visible at inference},ylabel={Hit rate@20},
+  axis lines*=left,tick style={draw=none},ymajorgrids,grid style={black!10},
+  legend style={draw=none,at={(0.02,1.0)},anchor=north west,legend columns=3,font=\small},
+  legend image code/.code={\draw[#1,draw=none] (0cm,-0.08cm) rectangle (0.25cm,0.14cm);}]
+\addplot[fill=cnone,draw=none] table[x=bucket,y=nograph]{generated/cold_degree.dat};
+\addplot[fill=cres,draw=none] table[x=bucket,y=residual]{generated/cold_degree.dat};
+\addplot[fill=cgcn,draw=none] table[x=bucket,y=plain]{generated/cold_degree.dat};
+\legend{No graph,Residual GCN,Plain GCN}
+\end{axis}
+\end{tikzpicture}
+\caption{Cold-start hit rate by number of visible citations (test, mean of five folds). Values are in Table~\ref{tab:degree}.}
+\label{fig:degree}
+\end{figure}
+
+\begin{table}[t]
+\centering\small
+\caption{Cold-start test hit rate@20 by number of visible citations. Pooled over pairs, so it differs from user-averaged Recall@20.}
+\label{tab:degree}
+\begin{tabular}{lccccc}
+\toprule
+Model & 0 & 1 & 2--3 & 4--7 & 8+ \\
+\midrule
+\rows{cold_degree}
+\bottomrule
+\end{tabular}
+\end{table}
+
+\subsection{Papers without citations are pushed out of the top 20}
+Papers with no visible citation make up 35.4\% of the cold test pool and 33.6\% of the held-out pairs. The no-graph model gives them 33.0\% of all top-20 slots, close to their share. The residual model gives them 21.9\%, and the plain GCN 18.8\%. Papers with eight or more citations go from 18.4\% of slots without the graph to 28.1\% with the residual model, although they are only 15.0\% of the pool. A top-20 list is a fixed budget, so part of the gain for cited papers is paid for by uncited ones.
+
+\subsection{The gain comes from links into the user's own library}
+Table~\ref{tab:link} groups the same pairs by whether the held-out paper has a citation link to a paper that the user has already saved. With two or more such links the residual model gains 0.137 hit rate. With one it gains 0.058. With citations that do not touch the user's library it gains only 0.009. The graph therefore helps mostly where a citation connects directly to the user's history. It adds little through citations to other papers.
+
+\begin{table}[t]
+\centering\small
+\caption{Cold-start test hit rate@20 by citation links between the held-out paper and the user's saved papers.}
+\label{tab:link}
+\begin{tabular}{lcccc}
+\toprule
+ & No & Cited, no link & One link & Two or more \\
+Model & citations & to profile & to profile & to profile \\
+\midrule
+\rows{cold_link}
+\bottomrule
+\end{tabular}
+\end{table}
+
+\subsection{Two example users}
+Examples were selected by rule: in fold 0, among users with at least five held-out papers, the user with the largest loss and the user with the largest gain. They illustrate the pattern but do not measure it.
+
+\paragraph{Largest loss (user 3543, 24 saved papers, Recall@20 $-0.40$).} The library covers boosting and support vector machines. The no-graph model finds ``Bagging, Boosting, and C4.5'' (no visible citations) and ``A Tutorial on Support Vector Machines for Pattern Recognition'' (seven citations, none to this library). The residual model misses both. Both models find ``Improved boosting algorithms using confidence-rated predictions'', which has two links to the library.
+
+\paragraph{Largest gain (user 1335, 17 saved papers, Recall@20 $+0.50$).} The library covers wikis and online collaboration. Only the residual model finds ``Internet encyclopaedias go head to head'', ``Creating, Destroying, and Restoring Value in Wikipedia'' and a paper on collaborative knowledge sharing, which have two, seven and two citations. Neither model finds ``Social Rewarding in Wiki Systems'', which is on topic but has no visible citations. Two of the three gained papers have no direct link to the library, so this case is an exception to the trend in Table~\ref{tab:link}.
+
+\subsection{Why uncited papers lose, and what we do not know}
+Two explanations are consistent with the data. Averaging moves cited papers toward the neighbourhoods that also form most user profiles, which would leave uncited papers further from the profile. The projection is also trained mostly on cited papers and may adapt to their features. We have tested neither. Earlier validation experiments on fold 0 that normalized $\mathbf{A}\mathbf{H}$ by row or by length did not recover the uncited group, which suggests that input magnitude alone is not the cause.
+
+\subsection{Implication for new papers}
+A paper published today has no citations, so it belongs to the first column of Table~\ref{tab:degree}, where the no-graph model is better by 0.066. For such papers we recommend \texttt{nograph-bce}. Choosing a model by the number of citations is a natural next step, but scores from two models are not directly comparable and we have not tested it.
+
+\paragraph{Limitations.} The citation links are undated and undirected, so a held-out paper's links may include papers that cited it later. Cold scores of the citation models are therefore optimistic. SPECTER2 was trained on external citation data that may overlap these papers. The number of citations may be confounded with topic and popularity, so the group analysis is observational. The five folds share data and are not independent. Test results use one seed. The best WMF setting lies at the edge of its grid (128 factors), so WMF may be under-tuned. Results cover one dataset.
+
+\section{Conclusion}
+Which signal works best depends on the paper being recommended. Where saves exist, collaborative filtering is well ahead and citations do not close the gap. Where they do not, a projection of SPECTER2 features learned from saves gives most of the gain, and citations add a smaller one that only appears when the paper's own features are kept. That gain is concentrated in papers that already have citations, especially to papers in the user's library. For papers without citations the graph is harmful. Average cold-start scores on undated citation graphs should be read together with a breakdown by citation count.
+
+\begin{thebibliography}{99}\small
+\bibitem{blei2003} D. M. Blei, A. Y. Ng, and M. I. Jordan. Latent Dirichlet allocation. \emph{JMLR}, 3:993--1022, 2003.
+\bibitem{cohan2020} A. Cohan, S. Feldman, I. Beltagy, D. Downey, and D. S. Weld. SPECTER: Document-level representation learning using citation-informed transformers. In \emph{ACL}, 2020.
+\bibitem{dacrema2019} M. Ferrari Dacrema, P. Cremonesi, and D. Jannach. Are we really making much progress? A worrying analysis of recent neural recommendation approaches. In \emph{RecSys}, 2019.
+\bibitem{deerwester1990} S. Deerwester, S. T. Dumais, G. W. Furnas, T. K. Landauer, and R. Harshman. Indexing by latent semantic analysis. \emph{JASIS}, 41(6):391--407, 1990.
+\bibitem{grover2016} A. Grover and J. Leskovec. node2vec: Scalable feature learning for networks. In \emph{KDD}, 2016.
+\bibitem{guo2025} P. Guo, G. Zhou, J. Lu, Z. Li, and T. Zhu. A paper recommendation method based on SPECTER and graph convolutional networks. \emph{Advances in Engineering Innovation}, 16(3):65--74, 2025.
+\bibitem{he2020} X. He, K. Deng, X. Wang, Y. Li, Y. Zhang, and M. Wang. LightGCN: Simplifying and powering graph convolution network for recommendation. In \emph{SIGIR}, 2020.
+\bibitem{hu2008} Y. Hu, Y. Koren, and C. Volinsky. Collaborative filtering for implicit feedback datasets. In \emph{ICDM}, 2008.
+\bibitem{kipf2017} T. N. Kipf and M. Welling. Semi-supervised classification with graph convolutional networks. In \emph{ICLR}, 2017.
+\bibitem{rendle2022} S. Rendle, W. Krichene, L. Zhang, and Y. Koren. Revisiting the performance of iALS on item recommendation benchmarks. In \emph{RecSys}, 2022.
+\bibitem{robertson2009} S. Robertson and H. Zaragoza. The probabilistic relevance framework: BM25 and beyond. \emph{Foundations and Trends in Information Retrieval}, 3(4):333--389, 2009.
+\bibitem{salton1988} G. Salton and C. Buckley. Term-weighting approaches in automatic text retrieval. \emph{Information Processing \& Management}, 24(5):513--523, 1988.
+\bibitem{sarwar2001} B. Sarwar, G. Karypis, J. Konstan, and J. Riedl. Item-based collaborative filtering recommendation algorithms. In \emph{WWW}, 2001.
+\bibitem{singh2023} A. Singh, M. D'Arcy, A. Cohan, D. Downey, and S. Feldman. SciRepEval: A multi-format benchmark for scientific document representations. In \emph{EMNLP}, 2023.
+\bibitem{wang2011} C. Wang and D. M. Blei. Collaborative topic modeling for recommending scientific articles. In \emph{KDD}, 2011.
+\bibitem{wang2013} H. Wang, B. Chen, and W.-J. Li. Collaborative topic regression with social regularization for tag recommendation. In \emph{IJCAI}, 2013.
+\bibitem{wu2019} F. Wu, A. Souza, T. Zhang, C. Fifty, T. Yu, and K. Weinberger. Simplifying graph convolutional networks. In \emph{ICML}, 2019.
+\end{thebibliography}
+\end{document}
