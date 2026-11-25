@@ -31,10 +31,21 @@ class CiteULikeDataset:
     interactions: sparse.csr_matrix
     text_decode_fallback_ids: tuple[int, ...] = ()  # Zero-based paper IDs
     duplicate_interactions_removed: int = 0
+    citations: sparse.csr_matrix | None = None  # Undirected paper-paper; see load_citations
+    citation_self_loops_removed: int = 0
 
     def statistics(self) -> dict:
         n_users, n_items = self.interactions.shape
         total = n_users * n_items
+        citation_statistics = {}
+        if self.citations is not None:
+            citation_statistics = {
+                "citation_edges": self.citations.nnz // 2,
+                "citation_isolated_papers": int(
+                    np.count_nonzero(np.diff(self.citations.indptr) == 0)
+                ),
+                "citation_self_loops_removed": self.citation_self_loops_removed,
+            }
         return {
             "users": n_users,
             "papers": n_items,
@@ -45,7 +56,57 @@ class CiteULikeDataset:
             "missing_text": sum(not p.text for p in self.papers),
             "text_decode_fallback_papers": len(self.text_decode_fallback_ids),
             "duplicate_interactions_removed": self.duplicate_interactions_removed,
+            **citation_statistics,
         }
+
+
+def load_citations(path: str | Path, n_items: int) -> tuple[sparse.csr_matrix, int]:
+    """Read citations.dat as (binary symmetric CSR without self-loops, loops removed).
+
+    Line i holds: count neighbour_1 neighbour_2 ... (zero-based IDs). The source
+    is fully symmetric and has no dates, so citing and cited papers cannot be
+    told apart. Asymmetric input is rejected rather than silently repaired.
+    """
+    rows: list[int] = []
+    cols: list[int] = []
+    n_lines = 0
+    with Path(path).expanduser().open(encoding="utf-8") as f:
+        for item_id, line in enumerate(f):
+            n_lines += 1
+            try:
+                values = [int(token) for token in line.split()]
+            except ValueError as exc:
+                raise ValueError(f"Non-integer value on citations.dat line {n_lines}") from exc
+            if not values:
+                raise ValueError(f"Blank row on citations.dat line {n_lines}; use '0'")
+            count, *neighbours = values
+            if count < 0 or count != len(neighbours):
+                raise ValueError(f"Invalid neighbour count on citations.dat line {n_lines}")
+            if any(item < 0 or item >= n_items for item in neighbours):
+                raise ValueError(f"Paper ID out of range on citations.dat line {n_lines}")
+            rows.extend([item_id] * count)
+            cols.extend(neighbours)
+    if n_lines != n_items:
+        raise ValueError(f"citations.dat has {n_lines} rows for {n_items} papers")
+
+    row_ids = np.asarray(rows, dtype=np.int64)
+    col_ids = np.asarray(cols, dtype=np.int64)
+    is_loop = row_ids == col_ids
+    self_loops = int(np.count_nonzero(is_loop))
+    mat = sparse.csr_matrix(
+        (
+            np.ones(len(row_ids) - self_loops, dtype=np.float32),
+            (row_ids[~is_loop], col_ids[~is_loop]),
+        ),
+        shape=(n_items, n_items),
+        dtype=np.float32,
+    )
+    mat.sum_duplicates()
+    mat.data.fill(1.0)
+    mat.sort_indices()
+    if (mat != mat.T).nnz:
+        raise ValueError("citations.dat must be symmetric")
+    return mat, self_loops
 
 
 def _decode_text(value: str | None) -> tuple[str, bool]:
@@ -150,7 +211,15 @@ def load_citeulike_a(directory: str | Path) -> CiteULikeDataset:
             stacklevel=2,
         )
 
-    return CiteULikeDataset(papers, mat, tuple(sorted(fallback_ids)), len(rows) - mat.nnz)
+    # Optional so that interaction-only datasets keep loading; graph builders
+    # raise a clear error when citations are required but absent.
+    citations, self_loops = None, 0
+    if (directory / "citations.dat").exists():
+        citations, self_loops = load_citations(directory / "citations.dat", n_items)
+
+    return CiteULikeDataset(
+        papers, mat, tuple(sorted(fallback_ids)), len(rows) - mat.nnz, citations, self_loops
+    )
 
 
 if __name__ == "__main__":

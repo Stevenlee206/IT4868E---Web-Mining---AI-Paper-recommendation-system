@@ -9,6 +9,9 @@ results/
 .cache/
 tests/*
 !tests/test_lexical.py
+!tests/test_graph.py
+!tests/test_node2vec.py
+!tests/test_gcn.py
 
 # Reproducible lexical features are generated locally from the saved splits.
 artifacts/features/

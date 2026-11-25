@@ -13,6 +13,8 @@ dependencies = [
 
 [project.optional-dependencies]
 dev = ["pytest>=8,<10", "ruff>=0.9,<1"]
+graph = ["gensim>=4.4,<5"]
+neural = ["torch>=2.2,<3", "transformers>=4.40,<5", "adapters>=1,<2"]
 
 [tool.setuptools.packages.find]
 include = ["paperrec*"]

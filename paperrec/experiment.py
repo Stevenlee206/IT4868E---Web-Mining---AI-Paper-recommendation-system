@@ -83,6 +83,7 @@ def run_experiment(dataset, folds, models, output, partition="validation", ks=(5
                     "feature_cache_path": str(model.cache_path_)
                     if getattr(model, "cache_path_", None) is not None
                     else None,
+                    "fit_statistics": getattr(model, "fit_statistics_", None),
                     "training_seconds": training_seconds,
                     "process_rss_peak_mb": memory.peak / 1024**2,
                     "process_rss_increase_mb": (memory.peak - memory.baseline) / 1024**2,
