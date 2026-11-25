@@ -1,6 +1,7 @@
 """Run the benchmark on Kaggle and download the results.
 
     python scripts/kaggle/launch.py          # upload, run all kernels, wait, download
+    python scripts/kaggle/launch.py wmf gcn  # rerun some kernels, then wait for all
     python scripts/kaggle/launch.py download # only fetch finished results
 
 Needs the Kaggle CLI (`pip install kaggle`) and a configured account. The dataset and
@@ -18,7 +19,7 @@ import time
 from pathlib import Path
 
 ROOT = Path(__file__).resolve().parents[2]
-GROUPS = ("gpu", "cpu", "gcn")
+GROUPS = ("encode", "wmf", "cpu", "gcn")
 DATASET = "paperrec-benchmark-bundle"
 RESULTS = ROOT / "results" / "kaggle"
 
@@ -70,13 +71,13 @@ def push(user, group):
             "language": "python",
             "kernel_type": "script",
             "is_private": True,
-            "enable_gpu": group == "gpu",
+            "enable_gpu": group in ("encode", "wmf"),
             "enable_internet": True,
             "dataset_sources": [f"{user}/{DATASET}"],
-            "kernel_sources": [f"{user}/paperrec-gpu"] if group == "gcn" else [],
+            "kernel_sources": [f"{user}/paperrec-encode"] if group == "gcn" else [],
         }
         (folder / "kernel-metadata.json").write_text(json.dumps(metadata))
-        extra = ("--accelerator", "NvidiaTeslaT4") if group == "gpu" else ()
+        extra = ("--accelerator", "NvidiaTeslaT4") if group in ("encode", "wmf") else ()
         print(kaggle("kernels", "push", "-p", str(folder), *extra).strip(), flush=True)
 
 
@@ -114,13 +115,16 @@ def main():
     user = username()
     if sys.argv[1:] == ["download"]:
         return download(user)
+    groups = sys.argv[1:] or GROUPS
     upload(user)
-    push(user, "gpu")
-    push(user, "cpu")
-    wait(user, "gpu")
-    push(user, "gcn")
-    wait(user, "cpu")
-    wait(user, "gcn")
+    for group in groups:
+        if group != "gcn":
+            push(user, group)
+    if "gcn" in groups:  # Needs the encoded features.
+        wait(user, "encode")
+        push(user, "gcn")
+    for group in GROUPS:
+        wait(user, group)
     download(user)
 
 

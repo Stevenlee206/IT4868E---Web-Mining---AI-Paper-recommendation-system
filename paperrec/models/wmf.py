@@ -24,7 +24,10 @@ def _solve(other, weights, positives, alpha, regularization, batch_size):
         rows = slice(start, start + batch_size)
         gram = (weights[rows] @ outer).reshape(-1, size, size) + ridge
         target = (1 + alpha) * (positives[rows] @ other)
-        result[rows] = torch.linalg.solve(gram, target)
+        # The systems are positive definite. Solving on CPU avoids a CUDA batched-solver crash.
+        factor = torch.linalg.cholesky(gram.cpu())
+        solution = torch.cholesky_solve(target.cpu().unsqueeze(2), factor).squeeze(2)
+        result[rows] = solution.to(result.device)
     return result
 
 

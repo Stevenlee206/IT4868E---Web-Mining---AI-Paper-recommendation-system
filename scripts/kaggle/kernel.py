@@ -13,7 +13,8 @@ GROUP = "__GROUP__"
 INPUT, WORK, REPO = Path("/kaggle/input"), Path("/kaggle/working"), Path("/tmp/paperrec")
 OUTPUT, FEATURES, LOGS = WORK / "benchmark", WORK / "features", WORK / "logs"
 JOBS = {
-    "gpu": ["wmf"],
+    "encode": [],
+    "wmf": ["wmf"],
     "cpu": ["tfidf", "bm25", "lsi", "lda", "item-knn", "node2vec-citation", "node2vec-bipartite"],
     "gcn": ["specter2-base", "specter2-adapter", "gcn-bce", "nograph-bce", "gcn-bce-add"],
 }
@@ -46,12 +47,12 @@ def main():
     with tarfile.open(bundle) as archive:
         archive.extractall(REPO, filter="data")
     packages = ["gensim>=4.4,<5", "psutil"]
-    if GROUP != "cpu":
+    if GROUP in ("encode", "gcn"):
         packages += ["transformers>=4.40,<5", "adapters>=1,<2"]
     codes = [sh("pip", sys.executable, "-m", "pip", "install", "-q", *packages)]
     sh("versions", sys.executable, "-m", "pip", "freeze")
 
-    if GROUP == "gpu":
+    if GROUP == "encode":
         codes.append(sh("gpu-info", "nvidia-smi"))
         codes.append(
             sh("encode-adapter", sys.executable, "-m", "paperrec.specter",
@@ -62,6 +63,7 @@ def main():
                "--models", "specter2", "--output-dir", str(FEATURES / "base"))
         )  # fmt: skip
         shutil.move(FEATURES / "base" / "specter2_embeddings.npy", FEATURES / "specter2_base.npy")
+    elif GROUP == "wmf":
         codes.append(benchmark("tune-wmf", "tune", "--models", "wmf"))
     elif GROUP == "cpu":
         codes.append(benchmark("tune-item-knn", "tune", "--models", "item-knn"))
@@ -81,12 +83,12 @@ def main():
         name = f"{scenario}-{model}"
         return benchmark(name, "run", "--model", model, "--scenario", scenario, env=ENV)
 
-    with ThreadPoolExecutor(1 if GROUP == "gpu" else os.cpu_count()) as pool:
+    with ThreadPoolExecutor(1 if GROUP == "wmf" else os.cpu_count()) as pool:
         codes += pool.map(job, tasks)
     if GROUP == "gcn":
         codes.append(benchmark("export-demo", "export-demo"))
-    if GROUP != "gpu":
-        shutil.rmtree(FEATURES)  # Only the GPU kernel's features are inputs elsewhere.
+    if GROUP != "encode":
+        shutil.rmtree(FEATURES)  # Only the encode kernel's features are inputs elsewhere.
     if any(codes):
         sys.exit(f"Failed steps: {codes}")
 
